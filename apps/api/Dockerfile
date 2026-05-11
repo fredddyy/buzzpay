@@ -19,11 +19,8 @@ RUN pnpm install --frozen-lockfile
 # Generate Prisma client
 RUN cd packages/db && npx prisma generate
 
-# Build shared package
-RUN cd packages/shared && pnpm build || true
-
 # Expose port
 EXPOSE 3000
 
-# Start API
-CMD ["npx", "tsx", "apps/api/src/index.ts"]
+# Run migrations + start API
+CMD cd packages/db && npx prisma migrate deploy && cd /app && npx tsx apps/api/src/index.ts

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../mock_data.dart';
 
 class ApiClient {
-  static const _baseUrl = 'http://10.0.2.2:3000/api';
+  static const _baseUrl = 'https://buzzpay-production.up.railway.app/api';
   static const _keyAccess = 'access_token';
   static const _keyRefresh = 'refresh_token';
 
