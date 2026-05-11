@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter --version)",
+      "Bash(pnpm install:*)",
+      "Bash(flutter pub:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(pnpm --filter @buzzpay/db add bcryptjs)",
+      "Bash(pnpm --filter @buzzpay/db add -D @types/bcryptjs)",
+      "Bash(pkill -f \"tsx src/index.ts\")",
+      "Bash(DATABASE_URL=\"postgresql://buzzpay:buzzpay_dev_2026@localhost:5432/buzzpay\" JWT_SECRET=\"buzzpay-dev-jwt-secret-change-in-production-2026\" JWT_REFRESH_SECRET=\"buzzpay-dev-refresh-secret-change-in-production-2026\" PAYSTACK_SECRET_KEY=\"sk_test_placeholder\" PAYSTACK_PUBLIC_KEY=\"pk_test_placeholder\" FRONTEND_URL=\"http://localhost:3001\" npx tsx src/index.ts)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"student@unilag.edu.ng\",\"password\":\"student123456\"}')",
+      "Bash(DATABASE_URL=\"postgresql://buzzpay:buzzpay_dev_2026@localhost:5432/buzzpay\" npx tsx prisma/seed.ts)",
+      "Bash(curl -s http://localhost:3000/api/health)",
+      "Bash(npx create-next-app@latest web --typescript --tailwind --eslint --app --src-dir --no-import-alias --use-pnpm)",
+      "Bash(pnpm add:*)",
+      "Bash(npx next:*)",
+      "Bash(taskkill //F //PID 26864)",
+      "Bash(curl:*)"
+    ]
+  }
+}

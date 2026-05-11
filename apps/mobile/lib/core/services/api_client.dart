@@ -1,13 +1,13 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../mock_data.dart';
 
 class ApiClient {
-  static const _baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator -> localhost
-  static const _storageKeyAccess = 'access_token';
-  static const _storageKeyRefresh = 'refresh_token';
+  static const _baseUrl = 'http://10.0.2.2:3000/api';
+  static const _keyAccess = 'access_token';
+  static const _keyRefresh = 'refresh_token';
 
   final Dio _dio;
-  final FlutterSecureStorage _storage;
 
   ApiClient()
       : _dio = Dio(BaseOptions(
@@ -15,11 +15,12 @@ class ApiClient {
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
           headers: {'Content-Type': 'application/json'},
-        )),
-        _storage = const FlutterSecureStorage() {
+        )) {
+    if (useMockData) return;
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _storage.read(key: _storageKeyAccess);
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString(_keyAccess);
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
@@ -29,8 +30,8 @@ class ApiClient {
         if (error.response?.statusCode == 401) {
           final refreshed = await _tryRefresh();
           if (refreshed) {
-            // Retry original request
-            final token = await _storage.read(key: _storageKeyAccess);
+            final prefs = await SharedPreferences.getInstance();
+            final token = prefs.getString(_keyAccess);
             error.requestOptions.headers['Authorization'] = 'Bearer $token';
             final response = await _dio.fetch(error.requestOptions);
             handler.resolve(response);
@@ -44,7 +45,8 @@ class ApiClient {
 
   Future<bool> _tryRefresh() async {
     try {
-      final refreshToken = await _storage.read(key: _storageKeyRefresh);
+      final prefs = await SharedPreferences.getInstance();
+      final refreshToken = prefs.getString(_keyRefresh);
       if (refreshToken == null) return false;
 
       final response = await Dio(BaseOptions(baseUrl: _baseUrl)).post(
@@ -62,21 +64,23 @@ class ApiClient {
   }
 
   Future<void> saveTokens(String accessToken, String refreshToken) async {
-    await _storage.write(key: _storageKeyAccess, value: accessToken);
-    await _storage.write(key: _storageKeyRefresh, value: refreshToken);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyAccess, accessToken);
+    await prefs.setString(_keyRefresh, refreshToken);
   }
 
   Future<void> clearTokens() async {
-    await _storage.delete(key: _storageKeyAccess);
-    await _storage.delete(key: _storageKeyRefresh);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyAccess);
+    await prefs.remove(_keyRefresh);
   }
 
   Future<bool> hasTokens() async {
-    final token = await _storage.read(key: _storageKeyAccess);
-    return token != null;
+    if (useMockData) return false;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyAccess) != null;
   }
 
-  // HTTP methods
   Future<Response> get(String path, {Map<String, dynamic>? queryParams}) =>
       _dio.get(path, queryParameters: queryParams);
 

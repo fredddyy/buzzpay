@@ -40,8 +40,8 @@ class AuthNotifier extends Notifier<AuthState> {
         ),
       );
     }
-    _checkAuth();
-    return const AuthState();
+    // Start unauthenticated — user authenticates via phone/login flow
+    return const AuthState(status: AuthStatus.unauthenticated);
   }
 
   ApiClient get _api => ref.read(apiClientProvider);
@@ -128,6 +128,20 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> logout() async {
     await _api.clearTokens();
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  /// Set authenticated after signup + verification flow (no API call needed)
+  void setAuthenticated({required String name, String? email}) {
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      user: User(
+        id: 'pending',
+        email: email ?? '',
+        fullName: name,
+        role: 'STUDENT',
+        verificationStatus: 'PENDING',
+      ),
+    );
   }
 
   String _extractError(dynamic e) {

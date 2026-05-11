@@ -2,6 +2,9 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../mock_data.dart';
 import '../../providers/auth_provider.dart';
+import '../../screens/onboarding/onboarding_screen.dart';
+import '../../screens/auth/phone_screen.dart';
+import '../../screens/auth/otp_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/signup_screen.dart';
 import '../../screens/auth/verify_screen.dart';
@@ -20,17 +23,37 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
-      if (useMockData) return null; // skip auth check in mock mode
+      if (useMockData) return null;
       final isAuth = authState.status == AuthStatus.authenticated;
-      final isAuthRoute = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/signup';
+      final loc = state.matchedLocation;
+      final isAuthRoute = loc == '/login' || loc == '/signup' || loc == '/onboarding' || loc == '/phone' || loc.startsWith('/otp') || loc == '/verify';
 
-      if (!isAuth && !isAuthRoute) return '/login';
+      if (!isAuth && !isAuthRoute) return '/onboarding';
       if (isAuth && isAuthRoute) return '/';
       return null;
     },
     routes: [
+      // Onboarding
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+
       // Auth routes
+      GoRoute(
+        path: '/phone',
+        builder: (context, state) => const PhoneScreen(),
+      ),
+      GoRoute(
+        path: '/otp',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map) {
+            return OtpScreen(phoneNumber: extra['phone'] as String? ?? '', devOtp: extra['otp'] as String?);
+          }
+          return OtpScreen(phoneNumber: extra as String? ?? '');
+        },
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),

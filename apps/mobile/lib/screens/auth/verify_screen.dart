@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/colors.dart';
+import '../../models/user.dart';
+import '../../providers/auth_provider.dart';
 
 class VerifyScreen extends ConsumerStatefulWidget {
   const VerifyScreen({super.key});
@@ -230,6 +232,23 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
             Text('We only confirm you\'re a student. We never share your data.',
                 style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
           ],
+        ),
+        const SizedBox(height: 20),
+        // Skip — browse as guest
+        GestureDetector(
+          onTap: () {
+            ref.read(authProvider.notifier).setAuthenticated(name: 'Student');
+            context.go('/');
+          },
+          child: Text(
+            'Skip for now — browse as guest',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textTertiary,
+              decoration: TextDecoration.underline,
+              decorationColor: AppColors.textTertiary.withValues(alpha: 0.4),
+            ),
+          ),
         ),
       ],
     );
@@ -468,7 +487,10 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
               boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
             ),
             child: ElevatedButton(
-              onPressed: () => context.go('/'),
+              onPressed: () {
+                ref.read(authProvider.notifier).setAuthenticated(name: 'Student');
+                context.go('/');
+              },
               style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
               child: const Text('Start Saving', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ),
