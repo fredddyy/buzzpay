@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build
+dist/
+build/
+.next/
+.turbo/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+packages/db/prisma/*.db
+
+# Flutter
+apps/mobile/.dart_tool/
+apps/mobile/.packages
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/pubspec.lock
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+coverage/

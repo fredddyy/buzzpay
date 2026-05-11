@@ -1,0 +1,21 @@
+{
+  "name": "buzzpay",
+  "private": true,
+  "scripts": {
+    "dev:api": "turbo run dev --filter=@buzzpay/api",
+    "dev:web": "turbo run dev --filter=@buzzpay/web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "db:migrate": "pnpm --filter @buzzpay/db migrate:dev",
+    "db:seed": "pnpm --filter @buzzpay/db seed",
+    "db:studio": "pnpm --filter @buzzpay/db studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
