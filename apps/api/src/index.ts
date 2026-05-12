@@ -15,7 +15,7 @@ cron.schedule('*/15 * * * *', async () => {
   }
 });
 
-app.listen(env.PORT, () => {
+app.listen(env.PORT, '0.0.0.0', () => {
   console.log(`BuzzPay API running on port ${env.PORT}`);
   console.log(`Environment: ${env.NODE_ENV}`);
 });

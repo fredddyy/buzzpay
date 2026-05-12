@@ -1,5 +1,5 @@
 FROM node:20-alpine AS base
-RUN npm install -g pnpm
+RUN npm install -g pnpm tsx
 
 WORKDIR /app
 
@@ -23,4 +23,4 @@ RUN cd packages/db && npx prisma generate
 EXPOSE 3000
 
 # Run migrations + start API
-CMD cd packages/db && npx prisma migrate deploy && cd /app && npx tsx apps/api/src/index.ts
+CMD cd packages/db && npx prisma migrate deploy && cd /app && tsx apps/api/src/index.ts
