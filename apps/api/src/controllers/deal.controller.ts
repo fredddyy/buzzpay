@@ -21,6 +21,15 @@ export const dealController = {
     }
   },
 
+  async upcoming(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const deals = await dealService.upcoming();
+      res.json({ success: true, data: deals });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async featured(_req: Request, res: Response, next: NextFunction) {
     try {
       const deals = await dealService.featured();

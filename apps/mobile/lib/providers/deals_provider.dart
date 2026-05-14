@@ -22,6 +22,7 @@ class DealsState {
   final List<Deal> deals;
   final List<Deal> featured;
   final List<Deal> happyHour;
+  final List<Deal> upcoming;
   final List<TrendingVendor> trendingVendors;
   final bool isLoading;
   final String? error;
@@ -33,6 +34,7 @@ class DealsState {
     this.deals = const [],
     this.featured = const [],
     this.happyHour = const [],
+    this.upcoming = const [],
     this.trendingVendors = const [],
     this.isLoading = false,
     this.error,
@@ -45,6 +47,7 @@ class DealsState {
     List<Deal>? deals,
     List<Deal>? featured,
     List<Deal>? happyHour,
+    List<Deal>? upcoming,
     List<TrendingVendor>? trendingVendors,
     bool? isLoading,
     String? error,
@@ -56,6 +59,7 @@ class DealsState {
         deals: deals ?? this.deals,
         featured: featured ?? this.featured,
         happyHour: happyHour ?? this.happyHour,
+        upcoming: upcoming ?? this.upcoming,
         trendingVendors: trendingVendors ?? this.trendingVendors,
         isLoading: isLoading ?? this.isLoading,
         error: error,
@@ -150,6 +154,20 @@ class DealsNotifier extends Notifier<DealsState> {
       state = state.copyWith(happyHour: deals);
     } catch (e) {
       debugPrint('loadHappyHour error: $e');
+    }
+  }
+
+  Future<void> loadUpcoming() async {
+    if (useMockData) return;
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/deals/upcoming');
+      final deals = (response.data['data'] as List)
+          .map((d) => Deal.fromJson(d))
+          .toList();
+      state = state.copyWith(upcoming: deals);
+    } catch (e) {
+      debugPrint('loadUpcoming error: $e');
     }
   }
 

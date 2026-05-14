@@ -109,6 +109,35 @@ export const dealService = {
     }));
   },
 
+  async upcoming() {
+    const allDeals = await dealRepository.findActive({ page: 1, limit: 100 });
+    const now = new Date();
+    const watHours = (now.getUTCHours() + 1) % 24;
+    const watMinutes = now.getUTCMinutes();
+    const currentMinutes = watHours * 60 + watMinutes;
+    const currentDay = ((now.getUTCDay() + (now.getUTCHours() + 1 >= 24 ? 1 : 0)) % 7);
+
+    const upcomingDeals = allDeals.deals.filter((d: any) => {
+      if (!d.dailyStart || !d.dailyEnd) return false;
+      if (d.activeDays && d.activeDays.length > 0 && !d.activeDays.includes(currentDay)) return false;
+
+      const [startH, startM] = d.dailyStart.split(':').map(Number);
+      const startMinutes = startH * 60 + startM;
+
+      // Not active yet, but starts within 2 hours
+      return startMinutes > currentMinutes && (startMinutes - currentMinutes) <= 120;
+    });
+
+    return upcomingDeals.map(mapDeal).map((d: any) => ({
+      ...d,
+      startsInMinutes: (() => {
+        if (!d.dailyStart) return 0;
+        const [h, m] = d.dailyStart.split(':').map(Number);
+        return (h * 60 + m) - currentMinutes;
+      })(),
+    }));
+  },
+
   async featured() {
     const deals = await dealRepository.findFeatured();
     return deals.map(mapDeal);

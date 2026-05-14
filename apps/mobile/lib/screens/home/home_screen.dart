@@ -54,6 +54,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref.read(dealsProvider.notifier).loadFeatured();
       ref.read(dealsProvider.notifier).loadHappyHour();
       ref.read(dealsProvider.notifier).loadTrendingVendors();
+      ref.read(dealsProvider.notifier).loadUpcoming();
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
     });
 
@@ -66,6 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ref.read(dealsProvider.notifier).loadDeals(refresh: true);
         ref.read(dealsProvider.notifier).loadFeatured();
         ref.read(dealsProvider.notifier).loadHappyHour();
+        ref.read(dealsProvider.notifier).loadUpcoming();
         ref.read(dealsProvider.notifier).loadTrendingVendors();
       });
     }
@@ -364,6 +366,89 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: HappyHourCard(
                             deal: deal,
                             onTap: () => context.push('/deal/${deal.id}'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
+
+              // ──── 3b. UPCOMING RUSH (starts within 2 hours) ────
+              if (deals.upcoming.isNotEmpty && _selectedCategory == null) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        const Text('⏰ ', style: TextStyle(fontSize: 16)),
+                        Text('Coming Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('Soon', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 100,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: deals.upcoming.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        final deal = deals.upcoming[index];
+                        final startsIn = (deal as dynamic).startsInMinutes as int? ?? 0;
+                        return GestureDetector(
+                          onTap: () => context.push('/deal/${deal.id}'),
+                          child: Container(
+                            width: 220,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 48, height: 48,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: AppColors.primary.withValues(alpha: 0.08),
+                                  ),
+                                  child: Center(child: Text('⏰', style: TextStyle(fontSize: 22))),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(deal.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 2),
+                                      Text(deal.vendorName, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        startsIn <= 60 ? 'Starts in ${startsIn}m' : 'Starts in ${startsIn ~/ 60}h ${startsIn % 60}m',
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },

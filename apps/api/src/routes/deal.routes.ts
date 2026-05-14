@@ -8,6 +8,7 @@ const router = Router();
 
 router.get('/', authenticate, validate(dealFilterSchema, 'query'), dealController.list);
 router.get('/happy-hour', authenticate, dealController.happyHour);
+router.get('/upcoming', authenticate, dealController.upcoming);
 router.get('/featured', authenticate, dealController.featured);
 router.get('/:id', authenticate, dealController.getById);
 
