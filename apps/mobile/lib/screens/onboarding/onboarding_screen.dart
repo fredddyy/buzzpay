@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/colors.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -16,23 +17,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _pages = [
     _OnboardingData(
       icon: 'assets/icons/ticket_3d.png',
-      title: 'Exclusive Savings',
-      subtitle: 'Get student-only discounts on your\nfavorite campus meals',
+      title: 'Student Deals,\nInstantly.',
+      subtitle: 'Exclusive discounts on food, drinks,\ndata & more — only for verified students.',
       color: Color(0xFFF0EDFF),
     ),
     _OnboardingData(
-      icon: 'assets/icons/star_3d.png',
-      title: 'Earn Rewards',
-      subtitle: 'Buy 5 meals and get the 6th one\nfree with loyalty stars',
+      icon: 'assets/icons/coins_3d.png',
+      title: 'Pay Less,\nSave More.',
+      subtitle: 'See the student price vs regular price.\nSave up to 40% on every purchase.',
       color: Color(0xFFEDF9F0),
     ),
     _OnboardingData(
-      icon: 'assets/icons/gift_3d.png',
-      title: 'Share & Save',
-      subtitle: 'Invite friends and you both get\n₦200 off your next deal',
+      icon: 'assets/icons/checkmark_3d.png',
+      title: 'Show QR,\nEnjoy Your Meal.',
+      subtitle: 'Pay in-app, get a voucher, show it\nto the vendor. No cash, no stress.',
       color: Color(0xFFFFF8ED),
     ),
   ];
+
+  Future<void> _complete() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_done', true);
+    if (mounted) context.go('/login');
+  }
 
   @override
   void dispose() {
@@ -42,9 +49,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _next() {
     if (_page < _pages.length - 1) {
-      _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _controller.nextPage(duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
     } else {
-      context.go('/phone');
+      _complete();
     }
   }
 
@@ -63,7 +70,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 children: [
                   if (_page < _pages.length - 1)
                     GestureDetector(
-                      onTap: () => context.go('/phone'),
+                      onTap: _complete,
                       child: const Text('Skip',
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                     ),
@@ -90,7 +97,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(_pages.length, (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                      duration: const Duration(milliseconds: 300),
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       width: _page == i ? 24 : 8,
                       height: 8,
@@ -143,25 +150,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Illustration circle
+          // 3D icon in tinted circle
           Container(
             width: 160,
             height: 160,
             decoration: BoxDecoration(
               color: data.color,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: data.color.withValues(alpha: 0.5),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
             child: Center(
               child: Image.asset(data.icon, width: 80, height: 80),
             ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 44),
           Text(
             data.title,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.2),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             data.subtitle,
             style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5),

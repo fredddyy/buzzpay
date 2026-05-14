@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/colors.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
@@ -18,6 +20,7 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
   final _emailController = TextEditingController();
   final _otpController = TextEditingController();
   bool _loading = false;
+  File? _pickedFile;
 
   @override
   void dispose() {
@@ -46,10 +49,51 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     });
   }
 
-  void _uploadDocument() {
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.primary),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picked = await picker.pickImage(source: source, maxWidth: 1200, imageQuality: 85);
+    if (picked == null) return;
+
+    setState(() {
+      _pickedFile = File(picked.path);
+    });
+  }
+
+  void _submitUpload() {
+    if (_pickedFile == null) return;
     setState(() => _loading = true);
+    // TODO: Upload to Cloudinary + submit to API for admin review
     Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) setState(() { _loading = false; _step = 4; });
+      if (mounted) setState(() { _loading = false; _step = 5; });
     });
   }
 
@@ -181,6 +225,7 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
       2 => _buildUpload(),
       3 => _buildOtpInput(),
       4 => _buildSuccess(),
+      5 => _buildPendingReview(),
       _ => const SizedBox(),
     };
   }
@@ -237,7 +282,9 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
         // Skip — browse as guest
         GestureDetector(
           onTap: () {
-            ref.read(authProvider.notifier).setAuthenticated(name: 'Student');
+            ref.read(authProvider.notifier).setAuthenticated(
+              name: ref.read(authProvider).user?.fullName ?? 'Student',
+            );
             context.go('/');
           },
           child: Text(
@@ -372,8 +419,9 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
                 : 'Upload a photo or PDF of your admission letter.',
             style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         const SizedBox(height: 28),
+        // Upload area — shows picker or preview
         GestureDetector(
-          onTap: _uploadDocument,
+          onTap: _pickImage,
           child: Container(
             width: double.infinity,
             height: 180,
@@ -382,8 +430,25 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1.5),
             ),
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
+            clipBehavior: Clip.antiAlias,
+            child: _pickedFile != null
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.file(_pickedFile!, fit: BoxFit.cover),
+                      Positioned(
+                        bottom: 8, right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text('Tap to change', style: TextStyle(fontSize: 11, color: Colors.white)),
+                        ),
+                      ),
+                    ],
+                  )
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -405,6 +470,14 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
           ),
         ),
         const SizedBox(height: 20),
+        // Submit button — only enabled when file is picked
+        if (_pickedFile != null)
+          _primaryButton(
+            label: 'Submit for Review',
+            loading: _loading,
+            onTap: _submitUpload,
+          ),
+        if (_pickedFile != null) const SizedBox(height: 12),
         Text('Your document will be reviewed within 24 hours.',
             style: TextStyle(fontSize: 11, color: AppColors.textTertiary), textAlign: TextAlign.center),
       ],
@@ -488,12 +561,50 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
             ),
             child: ElevatedButton(
               onPressed: () {
-                ref.read(authProvider.notifier).setAuthenticated(name: 'Student');
+                ref.read(authProvider.notifier).setAuthenticated(
+              name: ref.read(authProvider).user?.fullName ?? 'Student',
+            );
                 context.go('/');
               },
               style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
               child: const Text('Start Saving', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingReview() {
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        Image.asset('assets/icons/hourglass_3d.png', width: 72, height: 72),
+        const SizedBox(height: 20),
+        const Text('Under Review',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        const Text(
+            'We\'re reviewing your document.\nThis usually takes less than 24 hours.',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        const Text(
+            'You\'ll get a notification once approved.',
+            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 32),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton(
+            onPressed: () => context.go('/'),
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              side: const BorderSide(color: AppColors.border),
+            ),
+            child: const Text('Browse Deals While You Wait',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
           ),
         ),
       ],

@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../mock_data.dart';
 import '../../providers/auth_provider.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
@@ -22,13 +23,22 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/',
-    redirect: (context, state) {
-      if (useMockData) return null;
-      final isAuth = authState.status == AuthStatus.authenticated;
+    redirect: (context, state) async {
       final loc = state.matchedLocation;
-      final isAuthRoute = loc == '/login' || loc == '/signup' || loc == '/onboarding' || loc == '/phone' || loc.startsWith('/otp') || loc == '/verify';
+      final isOnboarding = loc == '/onboarding';
 
-      if (!isAuth && !isAuthRoute) return '/onboarding';
+      // Check if onboarding is done (works in both mock and real mode)
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+
+      if (!onboardingDone && !isOnboarding) return '/onboarding';
+
+      if (useMockData) return null;
+
+      final isAuth = authState.status == AuthStatus.authenticated;
+      final isAuthRoute = loc == '/login' || loc == '/signup' || isOnboarding || loc == '/phone' || loc.startsWith('/otp');
+
+      if (!isAuth && !isAuthRoute) return '/login';
       if (isAuth && isAuthRoute) return '/';
       return null;
     },
@@ -64,7 +74,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/signup',
-        builder: (context, state) => const SignupScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return SignupScreen(phone: extra['phone'] as String? ?? '');
+        },
       ),
 
       // Main app shell with bottom nav

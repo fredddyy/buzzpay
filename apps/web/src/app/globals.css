@@ -1,26 +1,91 @@
 @import "tailwindcss";
 
+/* ── BuzzPay Admin Design System ── */
+/* Dark-first · Data-dense · Zero UI library */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces — layered depth */
+  --color-base: #0f1011;
+  --color-surface: #161819;
+  --color-surface-light: #1e2023;
+  --color-surface-hover: #282b2e;
+  --color-border: #2a2d31;
+
+  /* Text */
+  --color-text: #e8e8e8;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+
+  /* Semantic */
+  --color-primary: #6C4FFF;
+  --color-primary-surface: rgba(108, 79, 255, 0.08);
+  --color-primary-border: rgba(108, 79, 255, 0.2);
+
+  --color-success: #22c55e;
+  --color-success-surface: rgba(34, 197, 94, 0.08);
+  --color-success-border: rgba(34, 197, 94, 0.2);
+
+  --color-warning: #f59e0b;
+  --color-warning-surface: rgba(245, 158, 11, 0.08);
+  --color-warning-border: rgba(245, 158, 11, 0.2);
+
+  --color-error: #ef4444;
+  --color-error-surface: rgba(239, 68, 68, 0.08);
+  --color-error-border: rgba(239, 68, 68, 0.2);
+
+  --color-info: #3b82f6;
+  --color-info-surface: rgba(59, 130, 246, 0.08);
+  --color-info-border: rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="light"] {
+  --color-base: #f9fafb;
+  --color-surface: #ffffff;
+  --color-surface-light: #f3f4f6;
+  --color-surface-hover: #e5e7eb;
+  --color-border: #e5e7eb;
+  --color-text: #111827;
+  --color-text-secondary: #6b7280;
+  --color-text-muted: #9ca3af;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--color-base);
+  --color-foreground: var(--color-text);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  font-variant-numeric: tabular-nums;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-base);
+  color: var(--color-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--color-surface) 25%,
+    var(--color-surface-light) 50%,
+    var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-surface-hover); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }

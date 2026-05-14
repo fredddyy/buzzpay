@@ -95,11 +95,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.get('/payments/verify/$reference');
-      if (response.data['data']['status'] == 'SUCCESS' && mounted) {
-        final vouchersResponse = await api.get('/vouchers');
-        final vouchers = vouchersResponse.data['data']['vouchers'] as List;
-        if (vouchers.isNotEmpty) { context.go('/voucher/${vouchers.first['id']}'); return; }
-      }
       if (mounted) context.go('/vouchers');
     } catch (_) {
       if (mounted) context.go('/vouchers');

@@ -29,4 +29,18 @@ export const phoneAuthController = {
       next(err);
     }
   },
+
+  async completeSignup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { phone, fullName, university } = req.body;
+      if (!phone || !fullName || !university) {
+        res.status(400).json({ success: false, message: 'Phone, name, and university required' });
+        return;
+      }
+      const result = await phoneAuthService.completeSignup(phone, fullName, university);
+      res.status(201).json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

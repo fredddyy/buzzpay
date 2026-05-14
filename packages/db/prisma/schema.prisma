@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Connection pooling: use ?connection_limit=20&pool_timeout=30 in DATABASE_URL for production
 }
 
 enum UserRole {
@@ -100,6 +101,7 @@ model Vendor {
   deals        Deal[]
   payouts      Payout[]
   loyaltyCards LoyaltyCard[]
+  qrCodes      VendorQrCode[]
 
   @@index([isActive])
 }
@@ -121,6 +123,7 @@ model Deal {
   expiresAt     DateTime
   isActive      Boolean      @default(true)
   isFeatured    Boolean      @default(false)
+  guestAccess   Boolean      @default(false) // visible + purchasable by unverified students
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -131,6 +134,8 @@ model Deal {
   @@index([vendorId])
   @@index([isActive, expiresAt])
   @@index([isFeatured, isActive])
+  @@index([isActive, startsAt, expiresAt, remainingQty]) // peak-load: active deals with stock
+  @@index([vendorId, isActive, expiresAt])               // vendor deal listings
 }
 
 model Voucher {
@@ -143,6 +148,7 @@ model Voucher {
   payment        Payment       @relation(fields: [paymentId], references: [id])
   code           String        @unique
   qrData         String        @unique
+  qrSecret       String?       // HMAC secret for rotating QR codes
   status         VoucherStatus @default(ACTIVE)
   expiresAt      DateTime
   redeemedAt     DateTime?
@@ -153,6 +159,8 @@ model Voucher {
   @@index([code])
   @@index([qrData])
   @@index([status, expiresAt])
+  @@index([dealId, status])      // vendor redemption lookups
+  @@index([studentId, createdAt]) // student voucher history
 }
 
 model Payment {
@@ -177,6 +185,9 @@ model Payment {
   @@index([userId])
   @@index([paystackReference])
   @@index([status])
+  @@index([dealId, status])        // deal revenue aggregation
+  @@index([userId, dealId, createdAt]) // per-user daily limit check
+  @@index([status, createdAt])     // admin transaction listing
 }
 
 model Payout {
@@ -222,4 +233,19 @@ model LoyaltyCard {
   @@unique([studentId, vendorId])
   @@index([studentId])
   @@index([vendorId])
+}
+
+model VendorQrCode {
+  id             String    @id @default(cuid())
+  serialNumber   String    @unique // e.g. "BZ-9942" — printed on physical sticker
+  vendorId       String?
+  vendor         Vendor?   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  assignedAt     DateTime?
+  assignedBy     String?   // admin user ID who linked the sticker
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([vendorId])
+  @@index([serialNumber])
 }

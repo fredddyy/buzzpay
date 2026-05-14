@@ -6,6 +6,7 @@ import { dealRepository } from '../repositories/deal.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { paystackService } from './paystack.service.js';
 import { AppError } from '../middleware/error.js';
+import { realtimeService } from './realtime.service.js';
 import { VOUCHER_EXPIRY_HOURS, VOUCHER_CODE_LENGTH } from '@buzzpay/shared';
 
 export const paymentService = {
@@ -87,6 +88,11 @@ export const paymentService = {
 
     // Decrement deal quantity
     await dealRepository.decrementQuantity(payment.dealId);
+
+    // Broadcast: payment completed, stock changed, voucher created
+    realtimeService.paymentCompleted(payment.id, payment.dealId, payment.amount);
+    realtimeService.stockChanged(payment.dealId, -1);
+    realtimeService.voucherStatusChanged(user.id, payment.id, 'ACTIVE');
   },
 
   async verifyPayment(reference: string) {

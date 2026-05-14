@@ -22,11 +22,13 @@ class _HappyHourCardState extends State<HappyHourCard> {
   void initState() {
     super.initState();
     _remaining = widget.deal.expiresAt.difference(DateTime.now());
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        _remaining = widget.deal.expiresAt.difference(DateTime.now());
-        if (_remaining.isNegative) _timer.cancel();
-      });
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) {
+        setState(() {
+          _remaining = widget.deal.expiresAt.difference(DateTime.now());
+          if (_remaining.isNegative) _timer.cancel();
+        });
+      }
     });
   }
 

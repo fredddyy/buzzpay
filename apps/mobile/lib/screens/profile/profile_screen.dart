@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/vouchers_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -12,7 +13,11 @@ class ProfileScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final user = auth.user;
     final isVerified = user?.isVerified == true;
-    final firstName = user?.fullName.split(' ').first ?? 'Student';
+    final firstName = (user?.fullName ?? 'Student').split(' ').first;
+    final vState = ref.watch(vouchersProvider);
+    final redeemedCount = vState.vouchers.where((v) => v.isRedeemed).length;
+    final activeCount = vState.vouchers.where((v) => v.isActive).length;
+    final totalDeals = redeemedCount + activeCount;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -126,7 +131,7 @@ class ProfileScreen extends ConsumerWidget {
                         Expanded(
                           child: _statCard(
                             label: 'Total Saved',
-                            value: '₦4,500',
+                            value: totalDeals > 0 ? '₦${(totalDeals * 500).toString()}' : '₦0',
                             asset: 'assets/icons/coins_3d.png',
                           ),
                         ),
@@ -134,7 +139,7 @@ class ProfileScreen extends ConsumerWidget {
                         Expanded(
                           child: _statCard(
                             label: 'Deals Claimed',
-                            value: '5',
+                            value: '$totalDeals',
                             asset: 'assets/icons/flame_3d.png',
                           ),
                         ),

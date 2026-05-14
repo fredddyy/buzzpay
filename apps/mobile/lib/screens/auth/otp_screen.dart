@@ -91,8 +91,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       final data = response.data['data'];
 
       if (data['isNewUser'] == true) {
-        // New user — go to signup to complete profile
-        if (mounted) { setState(() => _loading = false); context.go('/signup'); }
+        // New user — go to signup to complete profile, pass phone number
+        if (mounted) { setState(() => _loading = false); context.go('/signup', extra: {'phone': data['phone'] ?? widget.phoneNumber}); }
       } else {
         // Existing user — save tokens, go home
         final tokens = data['tokens'];

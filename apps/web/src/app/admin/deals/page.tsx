@@ -1,115 +1,606 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import SearchBar from "@/components/admin/SearchBar";
+import FilterPills from "@/components/admin/FilterPills";
+import Pagination from "@/components/admin/Pagination";
+import { subscribeAdmin } from "@/lib/supabase";
 
 interface Deal {
   id: string;
   title: string;
-  vendorName: string;
   category: string;
+  vendorName: string;
+  vendorId?: string;
   originalPrice: number;
   studentPrice: number;
-  totalQuantity: number;
   remainingQty: number;
+  totalQuantity: number;
   isActive: boolean;
   isFeatured: boolean;
+  featuredSection?: string;
   expiresAt: string;
+  description?: string;
+  imageUrl?: string;
+  maxPerUser?: number;
+  startsAt?: string;
+  guestAccess?: boolean;
 }
+
+interface Vendor { id: string; businessName: string; }
+
+const CATEGORIES = ["FOOD", "DRINKS", "SUBSCRIPTIONS", "TRANSPORT", "SHOPPING", "LIFESTYLE"];
+const CATEGORY_FILTERS = [
+  { label: "All", value: "" },
+  ...CATEGORIES.map(c => ({ label: c.charAt(0) + c.slice(1).toLowerCase(), value: c })),
+];
+const STATUS_FILTERS = [
+  { label: "All", value: "" },
+  { label: "Active", value: "active" },
+  { label: "Inactive", value: "inactive" },
+];
 
 export default function DealsPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modalDeal, setModalDeal] = useState<Deal | null | "new">(null);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
 
-  useEffect(() => { loadDeals(); }, []);
-
-  async function loadDeals() {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await api.get("/admin/deals");
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "20");
+      if (search) params.set("search", search);
+      if (category) params.set("category", category);
+      if (status) params.set("status", status);
+      const res = await api.get(`/admin/deals?${params}`);
       setDeals(res.data.data || []);
+      if (res.data.meta) setMeta(res.data.meta);
     } catch {
-      setDeals([
-        { id: "d1", title: "Jollof Rice + Chicken Combo", vendorName: "Mama Nkechi Kitchen", category: "FOOD", originalPrice: 250000, studentPrice: 180000, totalQuantity: 50, remainingQty: 8, isActive: true, isFeatured: true, expiresAt: new Date(Date.now() + 7 * 86400000).toISOString() },
-        { id: "d2", title: "Shawarma Special", vendorName: "Mama Nkechi Kitchen", category: "FOOD", originalPrice: 200000, studentPrice: 150000, totalQuantity: 40, remainingQty: 5, isActive: true, isFeatured: true, expiresAt: new Date(Date.now() + 7 * 86400000).toISOString() },
-        { id: "d3", title: "Iced Coffee + Pastry", vendorName: "ChillZone Cafe", category: "DRINKS", originalPrice: 150000, studentPrice: 100000, totalQuantity: 25, remainingQty: 3, isActive: true, isFeatured: true, expiresAt: new Date(Date.now() + 7 * 86400000).toISOString() },
-        { id: "d4", title: "Game Pass (2 Hours)", vendorName: "ChillZone Cafe", category: "LIFESTYLE", originalPrice: 200000, studentPrice: 130000, totalQuantity: 15, remainingQty: 15, isActive: false, isFeatured: false, expiresAt: new Date(Date.now() + 7 * 86400000).toISOString() },
-      ]);
+      setDeals([]);
     }
     setLoading(false);
+  }, [page, search, category, status]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadVendors(); }, []);
+  useEffect(() => subscribeAdmin({ onDealChanged: load }), [load]);
+
+  async function loadVendors() {
+    try {
+      const res = await api.get("/admin/vendors");
+      setVendors((res.data.data || []).map((v: any) => ({ id: v.id, businessName: v.businessName })));
+    } catch {
+      setVendors([]);
+    }
   }
 
-  function formatNaira(kobo: number): string {
-    return `₦${(kobo / 100).toLocaleString("en-NG")}`;
+  function fmt(kobo: number) { return `₦${(kobo / 100).toLocaleString("en-NG")}`; }
+  function stockPct(d: Deal) { return d.totalQuantity > 0 ? d.remainingQty / d.totalQuantity : 1; }
+
+  async function toggleActive(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    setDeals(prev => prev.map(d => d.id === id ? { ...d, isActive: !d.isActive } : d));
+    try { await api.put(`/admin/deals/${id}/toggle`); } catch {}
   }
 
-  async function toggleActive(deal: Deal) {
-    try { await api.put(`/admin/deals/${deal.id}`, { isActive: !deal.isActive }); } catch {}
-    setDeals((prev) => prev.map((d) => d.id === deal.id ? { ...d, isActive: !d.isActive } : d));
+  async function toggleFeatured(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    setDeals(prev => prev.map(d => d.id === id ? { ...d, isFeatured: !d.isFeatured } : d));
+    try { await api.put(`/admin/deals/${id}/feature`); } catch {}
   }
+
+  function handleSaved(deal: Deal, isEdit: boolean) {
+    if (isEdit) {
+      setDeals(prev => prev.map(d => d.id === deal.id ? deal : d));
+    } else {
+      load();
+    }
+    setModalDeal(null);
+  }
+
+  function handleSearch(v: string) { setSearch(v); setPage(1); }
+  function handleCategory(v: string) { setCategory(v); setPage(1); }
+  function handleStatus(v: string) { setStatus(v); setPage(1); }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 lg:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-2xl font-extrabold">Deals</h1>
-          <p className="text-sm text-gray-400">Create and manage student deals</p>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>Deals</h1>
+          <p className="text-[13px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Manage student deals and happy hour offers</p>
         </div>
-        <button className="px-5 py-2.5 rounded-full bg-[#6C4FFF] text-white text-sm font-bold shadow-lg shadow-[#6C4FFF]/20">
-          + New Deal
+        <button onClick={() => setModalDeal("new")}
+          className="px-3 py-1.5 rounded-lg text-[12px] font-semibold w-fit" style={{ background: "var(--color-primary)", color: "white" }}>
+          + Create Deal
         </button>
       </div>
 
-      {loading ? (
-        <div className="text-center py-20 text-gray-400">Loading...</div>
-      ) : (
-        <div className="bg-white rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Deal</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Vendor</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Price</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Stock</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Status</th>
-                <th className="text-right px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deals.map((deal) => (
-                <tr key={deal.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="px-5 py-4">
-                    <p className="font-bold">{deal.title}</p>
-                    <p className="text-xs text-gray-400">{deal.category}</p>
-                  </td>
-                  <td className="px-5 py-4 text-gray-500">{deal.vendorName}</td>
-                  <td className="px-5 py-4">
-                    <p className="font-bold text-[#6C4FFF]">{formatNaira(deal.studentPrice)}</p>
-                    <p className="text-xs text-gray-400 line-through">{formatNaira(deal.originalPrice)}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className={`text-xs font-semibold ${deal.remainingQty <= 5 ? "text-red-500" : "text-gray-600"}`}>
-                      {deal.remainingQty}/{deal.totalQuantity}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      deal.isActive ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"
-                    }`}>
-                      {deal.isActive ? "Active" : "Paused"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-right">
-                    <button onClick={() => toggleActive(deal)}
-                      className="text-xs text-gray-400 hover:text-gray-600 font-medium">
-                      {deal.isActive ? "Pause" : "Activate"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="w-full sm:w-64">
+          <SearchBar value={search} onChange={handleSearch} placeholder="Search deals or vendors..." />
         </div>
+        <FilterPills options={CATEGORY_FILTERS} selected={category} onChange={handleCategory} />
+        <FilterPills options={STATUS_FILTERS} selected={status} onChange={handleStatus} />
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+        <div className="grid grid-cols-[1fr_90px_100px_100px_80px_100px] gap-4 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)", letterSpacing: "0.05em" }}>
+          <span>Deal</span><span>Category</span><span>Price</span><span>Stock</span><span>Featured</span><span className="text-right">Status</span>
+        </div>
+
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-[1fr_90px_100px_100px_80px_100px] gap-4 px-4 py-3.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <div><div className="skeleton w-32 h-3 mb-1" /><div className="skeleton w-20 h-2.5" /></div>
+              <div className="skeleton w-14 h-5 rounded-full self-center" />
+              <div className="skeleton w-16 h-3 self-center" /><div className="skeleton w-full h-1.5 rounded self-center" />
+              <div className="skeleton w-8 h-4 rounded self-center" /><div className="skeleton w-14 h-6 rounded-full self-center ml-auto" />
+            </div>
+          ))
+        ) : deals.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-[13px]" style={{ color: "var(--color-text-muted)" }}>{search || category || status ? "No deals match your filters" : "No deals yet"}</p>
+          </div>
+        ) : (
+          deals.map(d => (
+            <div key={d.id}
+              className="grid grid-cols-[1fr_90px_100px_100px_80px_100px] gap-4 px-4 py-3 items-center transition-colors cursor-pointer"
+              style={{ borderBottom: "1px solid var(--color-border)" }}
+              onClick={() => setModalDeal(d)}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--color-surface-hover)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{d.title}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>{d.vendorName}</span>
+                  {d.featuredSection && (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--color-primary-surface)", color: "var(--color-primary)" }}>
+                      {d.featuredSection}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit"
+                style={{ background: "var(--color-surface-light)", color: "var(--color-text-secondary)" }}>
+                {d.category}
+              </span>
+              <div>
+                <span className="text-[13px] font-semibold" style={{ color: "var(--color-primary)" }}>{fmt(d.studentPrice)}</span>
+                <span className="text-[11px] ml-1 line-through" style={{ color: "var(--color-text-muted)" }}>{fmt(d.originalPrice)}</span>
+              </div>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1" style={{ color: "var(--color-text-muted)" }}>
+                  <span>{d.remainingQty}</span><span>{d.totalQuantity}</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-surface-hover)" }}>
+                  <div className="h-full rounded-full transition-all" style={{
+                    width: `${stockPct(d) * 100}%`,
+                    background: stockPct(d) < 0.2 ? "var(--color-error)" : "var(--color-primary)",
+                  }} />
+                </div>
+              </div>
+              <button onClick={(e) => toggleFeatured(e, d.id)} className="text-[18px]">
+                {d.isFeatured ? "⭐" : "☆"}
+              </button>
+              <div className="flex justify-end">
+                <button onClick={(e) => toggleActive(e, d.id)}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors"
+                  style={{
+                    background: d.isActive ? "var(--color-success-surface)" : "var(--color-error-surface)",
+                    color: d.isActive ? "var(--color-success)" : "var(--color-error)",
+                    border: `1px solid ${d.isActive ? "var(--color-success-border)" : "var(--color-error-border)"}`,
+                  }}>
+                  {d.isActive ? "Active" : "Inactive"}
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} onPageChange={setPage} />
+
+      {modalDeal !== null && (
+        <DealModal
+          deal={modalDeal === "new" ? undefined : modalDeal}
+          vendors={vendors}
+          onClose={() => setModalDeal(null)}
+          onSaved={handleSaved}
+        />
       )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────── */
+/* Deal Modal — Create & Edit               */
+/* ──────────────────────────────────────── */
+
+const SECTION_PRESETS: { name: string; start: string; end: string; days: number[] }[] = [
+  { name: "Hot in Akoka", start: "", end: "", days: [0,1,2,3,4,5,6] },
+  { name: "Breakfast Rush", start: "07:00", end: "10:30", days: [1,2,3,4,5] },
+  { name: "Lunch Special", start: "12:00", end: "15:30", days: [1,2,3,4,5] },
+  { name: "Happy Hour", start: "16:00", end: "19:00", days: [1,2,3,4,5] },
+  { name: "Night Owl", start: "21:00", end: "23:59", days: [0,1,2,3,4,5,6] },
+  { name: "Weekend Buzz", start: "10:00", end: "22:00", days: [0,6] },
+];
+const DAY_LABELS = ["S","M","T","W","T","F","S"];
+
+function DealModal({ deal, vendors, onClose, onSaved }: {
+  deal?: Deal;
+  vendors: Vendor[];
+  onClose: () => void;
+  onSaved: (deal: Deal, isEdit: boolean) => void;
+}) {
+  const isEdit = !!deal;
+
+  const [form, setForm] = useState({
+    vendorId: deal?.vendorId || vendors[0]?.id || "",
+    title: deal?.title || "",
+    description: deal?.description || "",
+    category: deal?.category || "FOOD",
+    imageUrl: deal?.imageUrl || "",
+    originalPrice: deal ? (deal.originalPrice / 100).toString() : "",
+    studentPrice: deal ? (deal.studentPrice / 100).toString() : "",
+    totalQuantity: deal?.totalQuantity?.toString() || "",
+    maxPerUser: deal?.maxPerUser?.toString() || "1",
+    startsAt: deal?.startsAt ? new Date(deal.startsAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+    expiresAt: deal?.expiresAt ? new Date(deal.expiresAt).toISOString().slice(0, 16) : new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
+    isFeatured: deal?.isFeatured || false,
+    guestAccess: deal?.guestAccess || false,
+    featuredSection: deal?.featuredSection || "",
+    hasDailyWindow: (deal as any)?.dailyStart ? true : false,
+    dailyStart: (deal as any)?.dailyStart || "08:00",
+    dailyEnd: (deal as any)?.dailyEnd || "11:00",
+    activeDays: (deal as any)?.activeDays || [1, 2, 3, 4, 5],
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function update(key: string, val: string | boolean) {
+    setForm(prev => ({ ...prev, [key]: val }));
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.title || !form.originalPrice || !form.studentPrice || !form.totalQuantity) {
+      setError("Fill in all required fields"); return;
+    }
+    const origKobo = Math.round(parseFloat(form.originalPrice) * 100);
+    const studKobo = Math.round(parseFloat(form.studentPrice) * 100);
+    if (studKobo >= origKobo) { setError("Student price must be less than original price"); return; }
+
+    setSaving(true); setError("");
+
+    const payload = {
+      vendorId: form.vendorId, title: form.title,
+      description: form.description || form.title, category: form.category,
+      imageUrl: form.imageUrl || undefined,
+      originalPrice: origKobo, studentPrice: studKobo,
+      totalQuantity: parseInt(form.totalQuantity),
+      maxPerUser: parseInt(form.maxPerUser) || 1,
+      startsAt: new Date(form.startsAt).toISOString(),
+      expiresAt: new Date(form.expiresAt).toISOString(),
+      isFeatured: form.isFeatured,
+      featuredSection: form.isFeatured ? form.featuredSection : undefined,
+      guestAccess: form.guestAccess,
+    };
+
+    const vendor = vendors.find(v => v.id === form.vendorId);
+    const resultDeal: Deal = {
+      id: deal?.id || `d_${Date.now()}`,
+      ...payload,
+      vendorName: vendor?.businessName || "Unknown",
+      remainingQty: isEdit ? (deal?.remainingQty ?? parseInt(form.totalQuantity)) : parseInt(form.totalQuantity),
+      isActive: deal?.isActive ?? true,
+    };
+
+    try {
+      if (isEdit) {
+        await api.put(`/admin/deals/${deal!.id}`, payload);
+      } else {
+        const res = await api.post("/admin/deals", payload);
+        resultDeal.id = res.data.data?.id || resultDeal.id;
+      }
+      onSaved(resultDeal, isEdit);
+    } catch {
+      setError("Failed to save deal. Check your connection.");
+    }
+    setSaving(false);
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: "var(--color-surface-light)", border: "1px solid var(--color-border)",
+    color: "var(--color-text)", borderRadius: 10, padding: "10px 14px", fontSize: 13, width: "100%", outline: "none",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em",
+    color: "var(--color-text-muted)", marginBottom: 6, display: "block",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-6"
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
+            {isEdit ? "Edit Deal" : "Create Deal"}
+          </h2>
+          <button onClick={onClose} className="p-1 rounded-lg" style={{ color: "var(--color-text-muted)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--color-surface-hover)"}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label style={labelStyle}>Vendor</label>
+            <select value={form.vendorId} onChange={e => update("vendorId", e.target.value)} style={inputStyle}>
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.businessName}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Deal Title *</label>
+            <input value={form.title} onChange={e => update("title", e.target.value)}
+              placeholder="e.g. Jollof Rice + Chicken Combo" style={inputStyle} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Description</label>
+            <textarea value={form.description} onChange={e => update("description", e.target.value)}
+              placeholder="Brief description" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>Category</label>
+              <select value={form.category} onChange={e => update("category", e.target.value)} style={inputStyle}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Deal Image</label>
+              <label className="block cursor-pointer">
+                <div className="rounded-xl overflow-hidden flex items-center justify-center"
+                  style={{ background: "var(--color-surface-light)", border: "2px dashed var(--color-border)", height: form.imageUrl ? "auto" : 80 }}>
+                  {form.imageUrl ? (
+                    <img src={form.imageUrl} alt="" className="w-full object-cover" style={{ maxHeight: 120 }} />
+                  ) : (
+                    <div className="flex flex-col items-center py-4">
+                      <svg className="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ color: "var(--color-text-muted)" }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
+                      <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>Upload photo</span>
+                    </div>
+                  )}
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => update("imageUrl", ev.target?.result as string);
+                    reader.readAsDataURL(file);
+                  }
+                }} />
+              </label>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>Original Price (₦) *</label>
+              <input type="number" step="0.01" value={form.originalPrice}
+                onChange={e => update("originalPrice", e.target.value)} placeholder="2500" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Student Price (₦) *</label>
+              <input type="number" step="0.01" value={form.studentPrice}
+                onChange={e => update("studentPrice", e.target.value)} placeholder="1800" style={inputStyle} />
+            </div>
+          </div>
+
+          {form.originalPrice && form.studentPrice && parseFloat(form.studentPrice) < parseFloat(form.originalPrice) && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px]"
+              style={{ background: "var(--color-success-surface)", color: "var(--color-success)" }}>
+              <span>Students save ₦{(parseFloat(form.originalPrice) - parseFloat(form.studentPrice)).toLocaleString()}</span>
+              <span className="ml-auto font-semibold">
+                {Math.round(((parseFloat(form.originalPrice) - parseFloat(form.studentPrice)) / parseFloat(form.originalPrice)) * 100)}% off
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>Total Quantity *</label>
+              <input type="number" value={form.totalQuantity}
+                onChange={e => update("totalQuantity", e.target.value)} placeholder="50" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Max Per User/Day</label>
+              <input type="number" value={form.maxPerUser}
+                onChange={e => update("maxPerUser", e.target.value)} placeholder="1" style={inputStyle} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>Starts At</label>
+              <input type="datetime-local" value={form.startsAt}
+                onChange={e => update("startsAt", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Expires At</label>
+              <input type="datetime-local" value={form.expiresAt}
+                onChange={e => update("expiresAt", e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          {/* Featured toggle + section name */}
+          <div className="rounded-xl p-4" style={{ background: "var(--color-surface-light)", border: "1px solid var(--color-border)" }}>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => update("isFeatured", !form.isFeatured)}
+                className="w-10 h-6 rounded-full transition-colors relative flex-shrink-0"
+                style={{ background: form.isFeatured ? "var(--color-primary)" : "var(--color-surface-hover)" }}>
+                <div className="w-4 h-4 rounded-full bg-white absolute top-1 transition-all"
+                  style={{ left: form.isFeatured ? 22 : 4 }} />
+              </button>
+              <div>
+                <span className="text-[13px] font-medium" style={{ color: "var(--color-text)" }}>Featured deal</span>
+                <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>Show in a featured section on the student feed</p>
+              </div>
+            </div>
+
+            {form.isFeatured && (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label style={labelStyle}>Section Name</label>
+                  <input value={form.featuredSection} onChange={e => update("featuredSection", e.target.value)}
+                    placeholder="e.g. Hot in Akoka" style={inputStyle} />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {SECTION_PRESETS.map(s => (
+                      <button key={s.name} type="button"
+                        onClick={() => {
+                          setForm(prev => ({
+                            ...prev,
+                            featuredSection: s.name,
+                            hasDailyWindow: !!s.start,
+                            dailyStart: s.start || prev.dailyStart,
+                            dailyEnd: s.end || prev.dailyEnd,
+                            activeDays: s.days,
+                          }));
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors"
+                        style={{
+                          background: form.featuredSection === s.name ? "var(--color-primary-surface)" : "var(--color-surface-hover)",
+                          color: form.featuredSection === s.name ? "var(--color-primary)" : "var(--color-text-muted)",
+                          border: `1px solid ${form.featuredSection === s.name ? "var(--color-primary-border)" : "transparent"}`,
+                        }}>
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-lg p-3" style={{ background: "var(--color-surface-hover)", border: "1px solid var(--color-border)" }}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <button type="button" onClick={() => setForm(prev => ({ ...prev, hasDailyWindow: !prev.hasDailyWindow }))}
+                      className="w-9 h-5 rounded-full transition-colors relative flex-shrink-0"
+                      style={{ background: form.hasDailyWindow ? "var(--color-primary)" : "var(--color-surface-light)" }}>
+                      <div className="w-3.5 h-3.5 rounded-full bg-white absolute top-[3px] transition-all"
+                        style={{ left: form.hasDailyWindow ? 18 : 3 }} />
+                    </button>
+                    <div>
+                      <span className="text-[12px] font-medium" style={{ color: "var(--color-text)" }}>Limit to daily hours</span>
+                      <p className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>Deal only visible during specific times each day</p>
+                    </div>
+                  </div>
+
+                  {form.hasDailyWindow && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label style={{ ...labelStyle, fontSize: 10 }}>From</label>
+                          <input type="time" value={form.dailyStart}
+                            onChange={e => update("dailyStart", e.target.value)} style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={{ ...labelStyle, fontSize: 10 }}>To</label>
+                          <input type="time" value={form.dailyEnd}
+                            onChange={e => update("dailyEnd", e.target.value)} style={inputStyle} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ ...labelStyle, fontSize: 10 }}>Active Days</label>
+                        <div className="flex gap-1.5">
+                          {DAY_LABELS.map((d, i) => {
+                            const active = form.activeDays.includes(i);
+                            return (
+                              <button key={i} type="button"
+                                onClick={() => {
+                                  setForm(prev => ({
+                                    ...prev,
+                                    activeDays: active
+                                      ? prev.activeDays.filter((x: number) => x !== i)
+                                      : [...prev.activeDays, i],
+                                  }));
+                                }}
+                                className="w-8 h-8 rounded-full text-[11px] font-semibold transition-colors"
+                                style={{
+                                  background: active ? "var(--color-primary)" : "var(--color-surface-light)",
+                                  color: active ? "white" : "var(--color-text-muted)",
+                                  border: `1px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
+                                }}>
+                                {d}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Guest access toggle */}
+          <div className="rounded-xl p-4 flex items-center gap-3"
+            style={{ background: "var(--color-surface-light)", border: "1px solid var(--color-border)" }}>
+            <button type="button" onClick={() => update("guestAccess", !form.guestAccess)}
+              className="w-10 h-6 rounded-full transition-colors relative flex-shrink-0"
+              style={{ background: form.guestAccess ? "var(--color-success)" : "var(--color-surface-hover)" }}>
+              <div className="w-4 h-4 rounded-full bg-white absolute top-1 transition-all"
+                style={{ left: form.guestAccess ? 22 : 4 }} />
+            </button>
+            <div>
+              <span className="text-[13px] font-medium" style={{ color: "var(--color-text)" }}>Open to unverified students</span>
+              <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>Allow guests to browse and buy without student verification</p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px]"
+              style={{ background: "var(--color-error-surface)", color: "var(--color-error)", border: "1px solid var(--color-error-border)" }}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-medium"
+              style={{ background: "var(--color-surface-light)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold disabled:opacity-50"
+              style={{ background: "var(--color-primary)", color: "white" }}>
+              {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Deal"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

@@ -25,9 +25,33 @@ export const voucherController = {
     res.json({ success: true, data: voucher });
   },
 
+  async getRotatingQr(req: Request, res: Response) {
+    try {
+      const user = await userRepository.findById(req.user!.userId);
+      if (!user?.student) {
+        res.status(400).json({ success: false, message: 'Student profile not found' });
+        return;
+      }
+      const result = await voucherService.getRotatingQr(req.params.id as string, user.student.id);
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ success: false, message: err.message });
+    }
+  },
+
   async redeemByQr(req: Request, res: Response) {
     const { qrData } = req.body;
     const result = await voucherService.redeemByQr(qrData, req.user!.userId);
     res.json({ success: true, data: result });
+  },
+
+  async redeemByRotatingQr(req: Request, res: Response) {
+    try {
+      const { qrPayload } = req.body;
+      const result = await voucherService.redeemByRotatingQr(qrPayload, req.user!.userId);
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ success: false, message: err.message });
+    }
   },
 };

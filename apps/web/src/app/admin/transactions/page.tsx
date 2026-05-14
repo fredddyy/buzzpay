@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import SearchBar from "@/components/admin/SearchBar";
+import FilterPills from "@/components/admin/FilterPills";
+import Pagination from "@/components/admin/Pagination";
+import { subscribeAdmin } from "@/lib/supabase";
 
-interface Transaction {
+interface Tx {
   id: string;
   amount: number;
   commission: number;
@@ -12,104 +16,110 @@ interface Transaction {
   paystackReference: string;
   paidAt: string | null;
   createdAt: string;
-  user: { fullName: string; email: string };
-  deal: { title: string; vendor: { businessName: string } };
+  user: { fullName: string };
+  deal: { title: string };
 }
 
+const STATUS_FILTERS = [
+  { label: "All", value: "" },
+  { label: "Success", value: "SUCCESS" },
+  { label: "Pending", value: "PENDING" },
+  { label: "Failed", value: "FAILED" },
+];
+
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
 
-  useEffect(() => { loadTransactions(); }, [statusFilter]);
-
-  async function loadTransactions() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = statusFilter !== "ALL" ? `?status=${statusFilter}` : "";
-      const res = await api.get(`/admin/transactions${params}`);
-      setTransactions(res.data.data || []);
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "20");
+      if (search) params.set("search", search);
+      if (status) params.set("status", status);
+      const res = await api.get(`/admin/transactions?${params}`);
+      setTxs(res.data.data || []);
+      if (res.data.meta) setMeta(res.data.meta);
     } catch {
-      setTransactions([
-        { id: "t1", amount: 180000, commission: 18000, vendorAmount: 162000, status: "SUCCESS", paystackReference: "bp_abc123", paidAt: new Date().toISOString(), createdAt: new Date().toISOString(), user: { fullName: "Tunde Bakare", email: "student@unilag.edu.ng" }, deal: { title: "Jollof Rice + Chicken", vendor: { businessName: "Mama Nkechi Kitchen" } } },
-        { id: "t2", amount: 150000, commission: 15000, vendorAmount: 135000, status: "SUCCESS", paystackReference: "bp_def456", paidAt: new Date().toISOString(), createdAt: new Date().toISOString(), user: { fullName: "Ada Obi", email: "ada@gmail.com" }, deal: { title: "Shawarma Special", vendor: { businessName: "Mama Nkechi Kitchen" } } },
-        { id: "t3", amount: 100000, commission: 12000, vendorAmount: 88000, status: "PENDING", paystackReference: "bp_ghi789", paidAt: null, createdAt: new Date().toISOString(), user: { fullName: "Chidi N.", email: "chidi@yahoo.com" }, deal: { title: "Iced Coffee + Pastry", vendor: { businessName: "ChillZone Cafe" } } },
-      ]);
+      setTxs([]);
     }
     setLoading(false);
+  }, [page, search, status]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => subscribeAdmin({ onPaymentCompleted: load }), [load]);
+
+  function handleSearch(v: string) { setSearch(v); setPage(1); }
+  function handleStatus(v: string) { setStatus(v); setPage(1); }
+
+  function fmt(kobo: number) { return `₦${(kobo / 100).toLocaleString("en-NG")}`; }
+  function time(d: string) {
+    const dt = new Date(d);
+    return dt.toLocaleDateString("en-NG", { day: "numeric", month: "short" }) + " " + dt.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
   }
 
-  function formatNaira(kobo: number): string {
-    return `₦${(kobo / 100).toLocaleString("en-NG")}`;
-  }
-
-  function formatDate(d: string): string {
-    return new Date(d).toLocaleDateString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  }
+  const statusStyle = (s: string) => ({
+    background: s === "SUCCESS" ? "var(--color-success-surface)" : s === "PENDING" ? "var(--color-warning-surface)" : "var(--color-error-surface)",
+    color: s === "SUCCESS" ? "var(--color-success)" : s === "PENDING" ? "var(--color-warning)" : "var(--color-error)",
+  });
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 lg:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-2xl font-extrabold">Transactions</h1>
-          <p className="text-sm text-gray-400">All payment activity</p>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>Transactions</h1>
+          <p className="text-[13px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Payment log and revenue tracking</p>
         </div>
-        <div className="flex gap-2">
-          {["ALL", "SUCCESS", "PENDING", "FAILED"].map((s) => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold ${
-                statusFilter === s ? "bg-[#6C4FFF] text-white" : "bg-white text-gray-500 border border-gray-200"
-              }`}>
-              {s === "ALL" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
-            </button>
-          ))}
+        <FilterPills options={STATUS_FILTERS} selected={status} onChange={handleStatus} />
+      </div>
+
+      <div className="mb-4 w-full sm:w-64">
+        <SearchBar value={search} onChange={handleSearch} placeholder="Search student, deal, or ref..." />
+      </div>
+
+      <div className="rounded-xl overflow-x-auto" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+        <div className="min-w-[800px]">
+        <div className="grid grid-cols-[1fr_1fr_90px_90px_90px_80px_130px] gap-3 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)", letterSpacing: "0.05em" }}>
+          <span>Student</span><span>Deal</span><span>Amount</span><span>Commission</span><span>Vendor</span><span>Status</span><span className="text-right">Date</span>
+        </div>
+
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-[1fr_1fr_90px_90px_90px_80px_130px] gap-3 px-4 py-3.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              {Array.from({ length: 7 }).map((_, j) => <div key={j} className="skeleton w-16 h-3 self-center" />)}
+            </div>
+          ))
+        ) : txs.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-[13px]" style={{ color: "var(--color-text-muted)" }}>{search || status ? "No transactions match your filters" : "No transactions yet"}</p>
+          </div>
+        ) : (
+          txs.map(tx => (
+            <div key={tx.id} className="grid grid-cols-[1fr_1fr_90px_90px_90px_80px_130px] gap-3 px-4 py-3 items-center transition-colors"
+              style={{ borderBottom: "1px solid var(--color-border)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--color-surface-hover)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <span className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{tx.user.fullName}</span>
+              <span className="text-[12px] truncate" style={{ color: "var(--color-text-secondary)" }}>{tx.deal.title}</span>
+              <span className="text-[13px] font-semibold font-mono" style={{ color: "var(--color-text)" }}>{fmt(tx.amount)}</span>
+              <span className="text-[12px] font-mono" style={{ color: "var(--color-success)" }}>{fmt(tx.commission)}</span>
+              <span className="text-[12px] font-mono" style={{ color: "var(--color-text-secondary)" }}>{fmt(tx.vendorAmount)}</span>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={statusStyle(tx.status)}>{tx.status}</span>
+              <span className="text-[11px] font-mono text-right" style={{ color: "var(--color-text-muted)" }}>{time(tx.createdAt)}</span>
+            </div>
+          ))
+        )}
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-20 text-gray-400">Loading...</div>
-      ) : (
-        <div className="bg-white rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Student</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Deal</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Amount</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Commission</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Status</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Date</th>
-                <th className="text-left px-5 py-3 text-xs text-gray-400 font-semibold uppercase tracking-wider">Ref</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((t) => (
-                <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold">{t.user.fullName}</p>
-                    <p className="text-xs text-gray-400">{t.user.email}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <p className="font-medium">{t.deal.title}</p>
-                    <p className="text-xs text-gray-400">{t.deal.vendor.businessName}</p>
-                  </td>
-                  <td className="px-5 py-4 font-bold">{formatNaira(t.amount)}</td>
-                  <td className="px-5 py-4 text-gray-400">{formatNaira(t.commission)}</td>
-                  <td className="px-5 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      t.status === "SUCCESS" ? "bg-green-50 text-green-600"
-                      : t.status === "PENDING" ? "bg-orange-50 text-orange-600"
-                      : "bg-red-50 text-red-600"
-                    }`}>{t.status}</span>
-                  </td>
-                  <td className="px-5 py-4 text-gray-400 text-xs">{formatDate(t.createdAt)}</td>
-                  <td className="px-5 py-4 text-gray-400 text-xs font-mono">{t.paystackReference}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Pagination page={page} totalPages={meta.totalPages} total={meta.total} onPageChange={setPage} />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import '../models/vendor.dart';
 import '../models/voucher.dart';
 
 /// Set to true to use mock data instead of API
-const bool useMockData = true;
+const bool useMockData = false;
 
 final _now = DateTime.now();
 

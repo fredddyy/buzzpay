@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/colors.dart';
+import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
-  const SignupScreen({super.key});
+  final String phone;
+  const SignupScreen({super.key, required this.phone});
 
   @override
   ConsumerState<SignupScreen> createState() => _SignupScreenState();
@@ -15,6 +17,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _nameController = TextEditingController();
   String _selectedCampus = 'UNILAG - Akoka';
   bool _loading = false;
+  String? _error;
 
   static const _campuses = [
     'UNILAG - Akoka',
@@ -29,18 +32,37 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (_nameController.text.trim().length < 2) return;
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
 
-    // TODO: Call API to create account with phone (from OTP) + name + campus
-    // For now, simulate and go to verification
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.post('/auth/phone/complete-signup', data: {
+        'phone': widget.phone,
+        'fullName': _nameController.text.trim(),
+        'university': _selectedCampus.split(' - ').first, // "UNILAG"
+      });
+
+      final data = response.data['data'];
+      final tokens = data['tokens'];
+      await api.saveTokens(tokens['accessToken'], tokens['refreshToken']);
+
       if (mounted) {
+        ref.read(authProvider.notifier).setAuthenticated(
+          name: _nameController.text.trim(),
+        );
         setState(() => _loading = false);
-        context.go('/verify');
+        context.go('/');
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Signup failed. Try again.';
+        });
+      }
+    }
   }
 
   InputDecoration _softInput(String hint, {IconData? icon}) {
@@ -96,6 +118,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 items: _campuses.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (v) => setState(() => _selectedCampus = v ?? _campuses.first),
               ),
+
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+              ],
 
               const SizedBox(height: 28),
 

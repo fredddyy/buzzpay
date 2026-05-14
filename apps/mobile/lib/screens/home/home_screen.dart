@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/mock_data.dart';
+import '../../core/services/supabase_client.dart';
 import '../../core/theme/colors.dart';
 import '../../models/voucher.dart';
 import '../../providers/auth_provider.dart';
@@ -41,16 +42,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ];
 
   String? _selectedCategory;
+  bool _notifyEnabled = false;
+  late final RealtimeDeals _realtime;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(dealsProvider.notifier).loadDeals(refresh: true);
+    Future.microtask(() async {
+      await ref.read(dealsProvider.notifier).loadDeals(refresh: true);
       ref.read(dealsProvider.notifier).loadFeatured();
       ref.read(dealsProvider.notifier).loadHappyHour();
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
     });
+
+    // Subscribe to all real-time changes
+    _realtime = RealtimeDeals();
+    _realtime.onDealChanged = () {
+      ref.read(dealsProvider.notifier).loadDeals(refresh: true);
+      ref.read(dealsProvider.notifier).loadFeatured();
+      ref.read(dealsProvider.notifier).loadHappyHour();
+    };
+    _realtime.onStockChanged = () {
+      // Refresh deals to get updated stock counts
+      ref.read(dealsProvider.notifier).loadDeals(refresh: true);
+    };
+    _realtime.onVoucherChanged = () {
+      ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
+    };
+    _realtime.onVerificationChanged = (status) {
+      // Refresh auth state when admin approves/rejects
+      ref.read(authProvider.notifier).setAuthenticated(
+        name: ref.read(authProvider).user?.fullName ?? '',
+      );
+    };
+    final userId = ref.read(authProvider).user?.id;
+    _realtime.subscribe(studentUserId: userId);
+  }
+
+  @override
+  void dispose() {
+    _realtime.dispose();
+    super.dispose();
   }
 
   @override
@@ -215,17 +247,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
 
-              // ──── LOYALTY PROGRESS (above happy hour) ────
-              if (mockLoyaltyCards.any((lc) => lc.stamps > 0 && !lc.isComplete))
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: LoyaltyCardWidget(
-                      card: mockLoyaltyCards.firstWhere((lc) => lc.stamps > 0 && !lc.isComplete),
-                    ),
-                  ),
-                ),
-
               // ──── 3. HAPPY HOUR ────
               if (deals.happyHour.isNotEmpty) ...[
                 SliverToBoxAdapter(
@@ -339,16 +360,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (deals.deals.isEmpty)
-                SliverFillRemaining(
+                SliverToBoxAdapter(
                   child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.search_off, size: 48, color: AppColors.textTertiary),
-                        const SizedBox(height: 12),
-                        Text('No deals found',
-                            style: Theme.of(context).textTheme.titleMedium),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(40, 32, 40, 40),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset('assets/icons/gift_3d.png', width: 72, height: 72),
+                          const SizedBox(height: 20),
+                          const Text('No deals yet!',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 6),
+                          Text('New deals drop every day.\nTurn on notifications so you don\'t miss out.',
+                              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 20),
+                          // Notify me toggle
+                          GestureDetector(
+                            onTap: () => setState(() => _notifyEnabled = true),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _notifyEnabled
+                                    ? AppColors.success.withValues(alpha: 0.08)
+                                    : AppColors.primary.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _notifyEnabled ? Icons.notifications_active : Icons.notifications_none,
+                                    size: 18,
+                                    color: _notifyEnabled ? AppColors.success : AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _notifyEnabled ? 'You\'re on the list!' : 'Notify me when deals drop',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: _notifyEnabled ? AppColors.success : AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 )
@@ -376,7 +438,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ),
         ),
@@ -393,6 +455,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _skeletonCard() {
+    return Container(
+      height: 160,
+      decoration: BoxDecoration(
+        color: AppColors.divider.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 90,
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(width: 80, height: 10, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(4))),
+                const SizedBox(height: 6),
+                Container(width: 50, height: 10, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(4))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showRedemptionSheet(BuildContext context, Voucher voucher) {
     showModalBottomSheet(
       context: context,
@@ -400,10 +495,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.6),
-      transitionAnimationController: AnimationController(
-        vsync: Navigator.of(context),
-        duration: const Duration(milliseconds: 300),
-      ),
       builder: (_) => _HomeRedemptionSheet(voucher: voucher),
     );
   }
@@ -558,17 +649,21 @@ class _SearchOverlayState extends ConsumerState<_SearchOverlay> {
                 ? const Center(child: CircularProgressIndicator())
                 : _searched && _results.isEmpty
                     ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.search_off, size: 48, color: AppColors.textTertiary),
-                            const SizedBox(height: 12),
-                            Text('No deals found',
-                                style: Theme.of(context).textTheme.titleMedium),
-                            const SizedBox(height: 4),
-                            Text('Try a different search',
-                                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                          ],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset('assets/icons/gift_3d.png', width: 56, height: 56),
+                              const SizedBox(height: 16),
+                              const Text('Nothing here yet',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 4),
+                              Text('Try a different search or check back later',
+                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                                  textAlign: TextAlign.center),
+                            ],
+                          ),
                         ),
                       )
                     : !_searched

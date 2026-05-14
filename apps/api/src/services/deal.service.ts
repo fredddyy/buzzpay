@@ -46,6 +46,7 @@ function mapDeal(d: any) {
     expiresAt: d.expiresAt.toISOString(),
     isActive: d.isActive,
     isFeatured: d.isFeatured,
+    guestAccess: d.guestAccess ?? false,
   };
 }
 

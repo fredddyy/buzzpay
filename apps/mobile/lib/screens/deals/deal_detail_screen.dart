@@ -277,6 +277,70 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                       Text(deal.description,
                           style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.6)),
 
+                      const SizedBox(height: 24),
+
+                      // Report vendor
+                      GestureDetector(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: AppColors.card,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                            ),
+                            builder: (_) => Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.flag_outlined, size: 32, color: AppColors.textTertiary),
+                                  const SizedBox(height: 12),
+                                  const Text('Report an issue',
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 6),
+                                  Text('Is "${deal.vendorName}" saying this deal is unavailable even though the app shows stock?',
+                                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                                      textAlign: TextAlign.center),
+                                  const SizedBox(height: 20),
+                                  SizedBox(
+                                    width: double.infinity, height: 48,
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                          content: const Text('Report submitted. We\'ll look into it.'),
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ));
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.danger,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      ),
+                                      child: const Text('Report Vendor', style: TextStyle(fontWeight: FontWeight.w600)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: const Text('Cancel', style: TextStyle(color: AppColors.textTertiary)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.flag_outlined, size: 14, color: AppColors.textTertiary),
+                            const SizedBox(width: 4),
+                            Text('Report an issue with this vendor',
+                                style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                          ],
+                        ),
+                      ),
+
                       const SizedBox(height: 120),
                     ],
                   ),

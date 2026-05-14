@@ -68,6 +68,13 @@ export const voucherRepository = {
     });
   },
 
+  async setQrSecret(id: string, secret: string) {
+    return prisma.voucher.update({
+      where: { id },
+      data: { qrSecret: secret },
+    });
+  },
+
   async expireOverdue() {
     return prisma.voucher.updateMany({
       where: { status: 'ACTIVE', expiresAt: { lt: new Date() } },

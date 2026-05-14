@@ -2,6 +2,7 @@ class Voucher {
   final String id;
   final String code;
   final String qrData;
+  final String? qrSecret; // HMAC secret for rotating QR
   final String status;
   final DateTime expiresAt;
   final DateTime? redeemedAt;
@@ -12,6 +13,7 @@ class Voucher {
     required this.id,
     required this.code,
     required this.qrData,
+    this.qrSecret,
     required this.status,
     required this.expiresAt,
     this.redeemedAt,
@@ -23,6 +25,7 @@ class Voucher {
         id: json['id'] as String,
         code: json['code'] as String,
         qrData: json['qrData'] as String,
+        qrSecret: json['qrSecret'] as String?,
         status: json['status'] as String,
         expiresAt: DateTime.parse(json['expiresAt'] as String),
         redeemedAt: json['redeemedAt'] != null
@@ -31,6 +34,18 @@ class Voucher {
         createdAt: DateTime.parse(json['createdAt'] as String),
         deal: VoucherDeal.fromJson(json['deal'] as Map<String, dynamic>),
       );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'qrData': qrData,
+        'qrSecret': qrSecret,
+        'status': status,
+        'expiresAt': expiresAt.toIso8601String(),
+        'redeemedAt': redeemedAt?.toIso8601String(),
+        'createdAt': createdAt.toIso8601String(),
+        'deal': deal.toJson(),
+      };
 
   bool get isActive => status == 'ACTIVE' && expiresAt.isAfter(DateTime.now());
   bool get isRedeemed => status == 'REDEEMED';
@@ -59,6 +74,13 @@ class VoucherDeal {
         vendorName: json['vendorName'] as String,
         studentPrice: json['studentPrice'] as int,
       );
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'imageUrl': imageUrl,
+        'vendorName': vendorName,
+        'studentPrice': studentPrice,
+      };
 
   String get formattedPrice {
     final naira = studentPrice / 100;

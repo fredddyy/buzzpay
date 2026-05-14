@@ -1,11 +1,16 @@
 import { prisma } from '@buzzpay/db';
-import { termiiService } from './termii.service.js';
-import { hashPassword } from '../utils/hash.js';
 import { signAccessToken, signRefreshToken } from '../utils/token.js';
+import { hashPassword } from '../utils/hash.js';
 import { AppError } from '../middleware/error.js';
 
-// Store pinIds temporarily (in production, use Redis)
-const pinStore = new Map<string, string>();
+// In-memory OTP store (in production, use Redis with TTL)
+const otpStore = new Map<string, { code: string; expiresAt: number }>();
+
+const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function generateOtp(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export const phoneAuthService = {
   async sendOtp(phone: string) {
@@ -13,33 +18,35 @@ export const phoneAuthService = {
     const normalized = phone.startsWith('+') ? phone
       : phone.startsWith('0') ? `+234${phone.substring(1)}` : `+234${phone}`;
 
-    try {
-      const result = await termiiService.sendOtp(normalized);
-      pinStore.set(normalized, result.pinId);
-      // In dev mode, return OTP for testing (remove in production)
-      return { phone: normalized, sent: true, otp: result.otp };
-    } catch (err: unknown) {
-      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to send OTP';
-      throw new AppError(500, `SMS failed: ${message}`);
-    }
+    const code = generateOtp();
+    otpStore.set(normalized, { code, expiresAt: Date.now() + OTP_TTL_MS });
+
+    console.log(`[OTP] ${normalized} → ${code}`); // visible in API logs for dev
+
+    // Return OTP in response for dev/testing (remove in production)
+    return { phone: normalized, sent: true, otp: code };
   },
 
   async verifyOtp(phone: string, pin: string) {
     const normalized = phone.startsWith('+') ? phone
       : phone.startsWith('0') ? `+234${phone.substring(1)}` : `+234${phone}`;
 
-    const pinId = pinStore.get(normalized);
-    if (!pinId) {
+    const stored = otpStore.get(normalized);
+    if (!stored) {
       throw new AppError(400, 'No OTP was sent to this number. Request a new one.');
     }
 
-    const { verified } = await termiiService.verifyOtp(pinId, pin);
-    if (!verified) {
-      throw new AppError(400, 'Invalid or expired code. Try again.');
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(normalized);
+      throw new AppError(400, 'OTP expired. Request a new one.');
+    }
+
+    if (stored.code !== pin) {
+      throw new AppError(400, 'Invalid code. Try again.');
     }
 
     // Clean up
-    pinStore.delete(normalized);
+    otpStore.delete(normalized);
 
     // Check if user exists with this phone
     const existingUser = await prisma.user.findUnique({ where: { phone: normalized }, include: { student: true } });
@@ -68,6 +75,52 @@ export const phoneAuthService = {
       isNewUser: true,
       phone: normalized,
       tokens: null,
+    };
+  },
+
+  async completeSignup(phone: string, fullName: string, university: string) {
+    const normalized = phone.startsWith('+') ? phone
+      : phone.startsWith('0') ? `+234${phone.substring(1)}` : `+234${phone}`;
+
+    // Check if user already exists
+    const existing = await prisma.user.findUnique({ where: { phone: normalized } });
+    if (existing) {
+      throw new AppError(409, 'Account already exists with this phone number');
+    }
+
+    // Create user + student record
+    const passwordHash = await hashPassword(`bp_${normalized}_${Date.now()}`); // auto-generated, user logs in via OTP
+    const user = await prisma.user.create({
+      data: {
+        email: `${normalized.replace('+', '')}@phone.buzzpay.ng`, // placeholder email
+        phone: normalized,
+        fullName,
+        passwordHash,
+        role: 'STUDENT',
+        student: {
+          create: {
+            university,
+            verificationStatus: 'PENDING',
+          },
+        },
+      },
+      include: { student: true },
+    });
+
+    const tokens = {
+      accessToken: signAccessToken({ userId: user.id, role: user.role }),
+      refreshToken: signRefreshToken({ userId: user.id, role: user.role }),
+    };
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        verificationStatus: user.student?.verificationStatus,
+      },
+      tokens,
     };
   },
 };

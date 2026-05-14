@@ -10,6 +10,7 @@ const router = Router();
 // Phone OTP auth
 router.post('/phone/send-otp', authLimiter, phoneAuthController.sendOtp);
 router.post('/phone/verify-otp', authLimiter, phoneAuthController.verifyOtp);
+router.post('/phone/complete-signup', authLimiter, phoneAuthController.completeSignup);
 
 // Email/password auth
 router.post('/signup', authLimiter, validate(signupSchema), authController.signup);
