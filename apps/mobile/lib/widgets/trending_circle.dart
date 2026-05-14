@@ -2,24 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/theme/colors.dart';
 import '../models/deal.dart';
+import '../providers/deals_provider.dart';
 
 class TrendingCircle extends StatelessWidget {
-  final Deal deal;
+  final Deal? deal;
+  final TrendingVendor? vendor;
   final VoidCallback onTap;
   final bool isNew;
 
   const TrendingCircle({
     super.key,
-    required this.deal,
+    this.deal,
+    this.vendor,
     required this.onTap,
     this.isNew = false,
   });
 
-  /// Truncate long vendor names for the circle row.
-  /// "Mama Nkechi Kitchen" → "Mama Nkechi's"
-  /// Short names stay as-is.
+  String get _name => vendor?.businessName ?? deal?.vendorName ?? '';
+  String? get _imageUrl => vendor?.logoUrl ?? deal?.imageUrl;
+
   String get _shortName {
-    final name = deal.vendorName;
+    final name = _name;
     if (name.length <= 14) return name;
     final words = name.split(' ');
     if (words.length >= 2) {
@@ -39,7 +42,6 @@ class TrendingCircle extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Circle avatar — purple ring if "new", gray ring if seen
             Container(
               width: 64,
               height: 64,
@@ -49,10 +51,7 @@ class TrendingCircle extends StatelessWidget {
                     ? const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.primary,
-                          AppColors.primaryLight,
-                        ],
+                        colors: [AppColors.primary, AppColors.primaryLight],
                       )
                     : null,
                 color: isNew ? null : AppColors.border.withValues(alpha: 0.5),
@@ -65,53 +64,33 @@ class TrendingCircle extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.all(2),
                 child: ClipOval(
-                  child: deal.imageUrl != null
+                  child: _imageUrl != null
                       ? CachedNetworkImage(
-                          imageUrl: deal.imageUrl!,
+                          imageUrl: _imageUrl!,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) =>
-                              Container(color: const Color(0xFFF5F5F5)),
-                          errorWidget: (_, __, ___) => Container(
-                            color: const Color(0xFFF5F5F5),
-                            child: const Icon(Icons.storefront,
-                                size: 20, color: AppColors.textTertiary),
-                          ),
+                          placeholder: (_, __) => Container(color: const Color(0xFFF5F5F5)),
+                          errorWidget: (_, __, ___) => _placeholder(),
                         )
-                      : Container(
-                          color: const Color(0xFFF5F5F5),
-                          child: const Icon(Icons.storefront,
-                              size: 20, color: AppColors.textTertiary),
-                        ),
+                      : _placeholder(),
                 ),
               ),
             ),
             const SizedBox(height: 5),
-            // Short vendor name
             Text(
               _shortName,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text,
-                height: 1.2,
-              ),
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.text, height: 1.2),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
-            // Social proof
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('🔥 ', style: TextStyle(fontSize: 9)),
                 Text(
-                  '${(deal.totalQuantity - deal.remainingQty) + 80}',
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                  ),
+                  deal != null ? '${(deal!.totalQuantity - deal!.remainingQty) + 80}' : '',
+                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -120,4 +99,14 @@ class TrendingCircle extends StatelessWidget {
       ),
     );
   }
+
+  Widget _placeholder() => Container(
+    color: const Color(0xFFF5F5F5),
+    child: Center(
+      child: Text(
+        _name.isNotEmpty ? _name[0] : '?',
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary),
+      ),
+    ),
+  );
 }

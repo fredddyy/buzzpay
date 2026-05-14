@@ -21,6 +21,7 @@ router.put('/deals/:id/feature', adminController.featureDeal);
 router.get('/vendors', adminController.listVendors);
 router.post('/vendors', adminController.createVendor);
 router.put('/vendors/:id', adminController.updateVendor);
+router.put('/vendors/:id/trending', adminController.toggleTrending);
 
 // Students
 router.get('/students/pending', adminController.listStudents);

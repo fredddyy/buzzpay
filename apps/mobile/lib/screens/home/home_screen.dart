@@ -53,6 +53,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await ref.read(dealsProvider.notifier).loadDeals(refresh: true);
       ref.read(dealsProvider.notifier).loadFeatured();
       ref.read(dealsProvider.notifier).loadHappyHour();
+      ref.read(dealsProvider.notifier).loadTrendingVendors();
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
     });
 
@@ -65,6 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ref.read(dealsProvider.notifier).loadDeals(refresh: true);
         ref.read(dealsProvider.notifier).loadFeatured();
         ref.read(dealsProvider.notifier).loadHappyHour();
+        ref.read(dealsProvider.notifier).loadTrendingVendors();
       });
     }
 
@@ -371,8 +373,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
 
-              // ──── 4. TRENDING AT UNILAG ────
-              if (deals.featured.isNotEmpty && _selectedCategory == null) ...[
+              // ──── 4. TRENDING VENDORS (from admin 🔥 toggle) ────
+              if (deals.trendingVendors.isNotEmpty && _selectedCategory == null) ...[
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -390,14 +392,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: deals.featured.length,
+                      itemCount: deals.trendingVendors.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 6),
                       itemBuilder: (context, index) {
-                        final deal = deals.featured[index];
+                        final vendor = deals.trendingVendors[index];
                         return TrendingCircle(
-                          deal: deal,
+                          vendor: vendor,
                           isNew: index < 2,
-                          onTap: () => context.push('/vendor/${deal.vendorId}'),
+                          onTap: () => context.push('/vendor/${vendor.id}'),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
+
+              // ──── 4b. FEATURED DEALS (horizontal cards from ⭐ in admin) ────
+              if (deals.featured.isNotEmpty && _selectedCategory == null) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _sectionHeader(context, title: 'Hot in Akoka', seeAll: true),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 240,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: deals.featured.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final deal = deals.featured[index];
+                        return SizedBox(
+                          width: 200,
+                          child: DealCard(
+                            deal: deal,
+                            isVerified: isVerified,
+                            onTap: () => context.push('/deal/${deal.id}'),
+                          ),
                         );
                       },
                     ),
@@ -412,7 +448,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _sectionHeader(
                     context,
-                    title: _selectedCategory != null ? 'Results' : 'Hot in Akoka',
+                    title: _selectedCategory != null ? 'Results' : 'All Deals',
                     seeAll: true,
                   ),
                 ),

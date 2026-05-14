@@ -4,10 +4,25 @@ import '../core/mock_data.dart';
 import '../models/deal.dart';
 import 'api_provider.dart';
 
+class TrendingVendor {
+  final String id;
+  final String businessName;
+  final String? logoUrl;
+
+  TrendingVendor({required this.id, required this.businessName, this.logoUrl});
+
+  factory TrendingVendor.fromJson(Map<String, dynamic> json) => TrendingVendor(
+    id: json['id'] as String,
+    businessName: json['businessName'] as String,
+    logoUrl: json['logoUrl'] as String?,
+  );
+}
+
 class DealsState {
   final List<Deal> deals;
   final List<Deal> featured;
   final List<Deal> happyHour;
+  final List<TrendingVendor> trendingVendors;
   final bool isLoading;
   final String? error;
   final int page;
@@ -18,6 +33,7 @@ class DealsState {
     this.deals = const [],
     this.featured = const [],
     this.happyHour = const [],
+    this.trendingVendors = const [],
     this.isLoading = false,
     this.error,
     this.page = 1,
@@ -29,6 +45,7 @@ class DealsState {
     List<Deal>? deals,
     List<Deal>? featured,
     List<Deal>? happyHour,
+    List<TrendingVendor>? trendingVendors,
     bool? isLoading,
     String? error,
     int? page,
@@ -39,6 +56,7 @@ class DealsState {
         deals: deals ?? this.deals,
         featured: featured ?? this.featured,
         happyHour: happyHour ?? this.happyHour,
+        trendingVendors: trendingVendors ?? this.trendingVendors,
         isLoading: isLoading ?? this.isLoading,
         error: error,
         page: page ?? this.page,
@@ -132,6 +150,20 @@ class DealsNotifier extends Notifier<DealsState> {
       state = state.copyWith(happyHour: deals);
     } catch (e) {
       debugPrint('loadHappyHour error: $e');
+    }
+  }
+
+  Future<void> loadTrendingVendors() async {
+    if (useMockData) return;
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/vendors/trending');
+      final vendors = (response.data['data'] as List)
+          .map((v) => TrendingVendor.fromJson(v))
+          .toList();
+      state = state.copyWith(trendingVendors: vendors);
+    } catch (e) {
+      debugPrint('loadTrendingVendors error: $e');
     }
   }
 

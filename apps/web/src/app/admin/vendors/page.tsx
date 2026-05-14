@@ -243,7 +243,7 @@ export default function VendorsPage() {
                 <span className="text-[12px] font-mono" style={{ color: "var(--color-text-secondary)" }}>{v.opensAt}–{v.closesAt}</span>
                 <span className="text-[12px] font-mono" style={{ color: "var(--color-text-secondary)" }}>{(v.commissionRate * 100).toFixed(0)}%</span>
                 <span className="text-[12px] font-mono font-semibold" style={{ color: "var(--color-success)" }}>{fmt(v.totalSales)}</span>
-                <button onClick={(e) => { e.stopPropagation(); setVendors(prev => prev.map(x => x.id === v.id ? { ...x, isTrending: !x.isTrending } : x)); }}
+                <button onClick={async (e) => { e.stopPropagation(); setVendors(prev => prev.map(x => x.id === v.id ? { ...x, isTrending: !x.isTrending } : x)); try { await api.put(`/admin/vendors/${v.id}/trending`); } catch {} }}
                   className="text-[16px]" title={v.isTrending ? "Remove trending" : "Set trending"}>
                   {v.isTrending ? "🔥" : "○"}
                 </button>

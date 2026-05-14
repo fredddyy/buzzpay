@@ -90,6 +90,7 @@ model Vendor {
   businessPhone   String
   logoUrl         String?
   isActive        Boolean  @default(true)
+  isTrending      Boolean  @default(false)
   opensAt         String   @default("08:00") // HH:mm in WAT
   closesAt        String   @default("21:00") // HH:mm in WAT
   dailyCode       String?

@@ -307,7 +307,7 @@ export const adminController = {
           closesAt: v.closesAt,
           commissionRate: v.commissionRate,
           dealCount: v._count.deals,
-          isTrending: false,
+          isTrending: v.isTrending,
           totalSales: vendorSales.get(v.id) ?? 0,
           pendingPayout: 0,
           redemptionRate: totalV > 0 ? Math.round((redeemedV / totalV) * 100) : 0,
@@ -383,6 +383,22 @@ export const adminController = {
       res.json({ success: true, data: { id: updated.id } });
       const action = isActive === false ? 'suspended' : isActive === true ? 'activated' : 'updated';
       realtimeService.vendorChanged(updated.id, action);
+    } catch (err) { next(err); }
+  },
+
+  async toggleTrending(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+      const vendor = await prisma.vendor.findUnique({ where: { id } });
+      if (!vendor) throw new AppError(404, 'Vendor not found');
+
+      const updated = await prisma.vendor.update({
+        where: { id },
+        data: { isTrending: !vendor.isTrending },
+      });
+
+      res.json({ success: true, data: { id: updated.id, isTrending: updated.isTrending } });
+      realtimeService.vendorChanged(updated.id, 'updated');
     } catch (err) { next(err); }
   },
 
