@@ -21,11 +21,11 @@ class _HappyHourCardState extends State<HappyHourCard> {
   @override
   void initState() {
     super.initState();
-    _remaining = widget.deal.expiresAt.difference(DateTime.now());
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _remaining = _calcRemaining();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         setState(() {
-          _remaining = widget.deal.expiresAt.difference(DateTime.now());
+          _remaining = _calcRemaining();
           if (_remaining.isNegative) _timer.cancel();
         });
       }
@@ -38,10 +38,26 @@ class _HappyHourCardState extends State<HappyHourCard> {
     super.dispose();
   }
 
+  /// Calculate remaining time until the daily window ends (not deal expiry)
+  Duration _calcRemaining() {
+    final deal = widget.deal;
+    if (deal.dailyEnd != null && deal.dailyEnd!.contains(':')) {
+      // Use daily window end time (WAT = UTC+1)
+      final now = DateTime.now().toUtc().add(const Duration(hours: 1));
+      final parts = deal.dailyEnd!.split(':');
+      final endToday = DateTime.utc(now.year, now.month, now.day, int.parse(parts[0]), int.parse(parts[1]));
+      return endToday.difference(now);
+    }
+    // Fallback to deal expiresAt
+    return deal.expiresAt.difference(DateTime.now());
+  }
+
   String _formatCountdown(Duration d) {
     if (d.isNegative) return '00:00';
-    final m = d.inMinutes.toString().padLeft(2, '0');
+    final h = d.inHours;
+    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    if (h > 0) return '$h:$m:$s';
     return '$m:$s';
   }
 
