@@ -105,6 +105,10 @@ export const adminController = {
         isActive: d.isActive,
         isFeatured: d.isFeatured,
         guestAccess: (d as any).guestAccess ?? false,
+        dailyStart: (d as any).dailyStart ?? null,
+        dailyEnd: (d as any).dailyEnd ?? null,
+        activeDays: (d as any).activeDays ?? [],
+        featuredSection: (d as any).featuredSection ?? null,
       }));
 
       res.json({ success: true, data: mapped, meta: paginationMeta(total, page, limit) });
@@ -113,7 +117,7 @@ export const adminController = {
 
   async createDeal(req: Request, res: Response, next: NextFunction) {
     try {
-      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess } = req.body;
+      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess, dailyStart, dailyEnd, activeDays, featuredSection } = req.body;
 
       const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
       if (!vendor) throw new AppError(404, 'Vendor not found');
@@ -134,6 +138,10 @@ export const adminController = {
           expiresAt: new Date(expiresAt),
           isFeatured: isFeatured ?? false,
           guestAccess: guestAccess ?? false,
+          dailyStart: dailyStart || null,
+          dailyEnd: dailyEnd || null,
+          activeDays: activeDays || [],
+          featuredSection: featuredSection || null,
         },
         include: { vendor: { select: { businessName: true } } },
       });
@@ -153,7 +161,7 @@ export const adminController = {
   async updateDeal(req: Request, res: Response, next: NextFunction) {
     try {
       const id = req.params.id as string;
-      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess } = req.body;
+      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess, dailyStart, dailyEnd, activeDays, featuredSection } = req.body;
 
       const existing = await prisma.deal.findUnique({ where: { id } });
       if (!existing) throw new AppError(404, 'Deal not found');
@@ -174,6 +182,10 @@ export const adminController = {
           ...(expiresAt !== undefined && { expiresAt: new Date(expiresAt) }),
           ...(isFeatured !== undefined && { isFeatured }),
           ...(guestAccess !== undefined && { guestAccess }),
+          ...(dailyStart !== undefined && { dailyStart: dailyStart || null }),
+          ...(dailyEnd !== undefined && { dailyEnd: dailyEnd || null }),
+          ...(activeDays !== undefined && { activeDays }),
+          ...(featuredSection !== undefined && { featuredSection: featuredSection || null }),
         },
       });
 

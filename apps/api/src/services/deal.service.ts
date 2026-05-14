@@ -47,6 +47,10 @@ function mapDeal(d: any) {
     isActive: d.isActive,
     isFeatured: d.isFeatured,
     guestAccess: d.guestAccess ?? false,
+    dailyStart: d.dailyStart ?? null,
+    dailyEnd: d.dailyEnd ?? null,
+    activeDays: d.activeDays ?? [],
+    featuredSection: d.featuredSection ?? null,
   };
 }
 
@@ -71,8 +75,38 @@ export const dealService = {
   },
 
   async happyHour() {
-    const deals = await dealRepository.findExpiringSoon(60);
-    return deals.map(mapDeal);
+    // Find deals with daily windows that are currently active
+    const allDeals = await dealRepository.findActive({ page: 1, limit: 100 });
+    const now = new Date();
+    // WAT = UTC+1
+    const watHours = (now.getUTCHours() + 1) % 24;
+    const watMinutes = now.getUTCMinutes();
+    const currentMinutes = watHours * 60 + watMinutes;
+    const currentDay = ((now.getUTCDay() + (now.getUTCHours() + 1 >= 24 ? 1 : 0)) % 7);
+
+    const happyHourDeals = allDeals.deals.filter((d: any) => {
+      if (!d.dailyStart || !d.dailyEnd) return false;
+
+      // Check active days (empty = every day)
+      if (d.activeDays && d.activeDays.length > 0 && !d.activeDays.includes(currentDay)) return false;
+
+      const [startH, startM] = d.dailyStart.split(':').map(Number);
+      const [endH, endM] = d.dailyEnd.split(':').map(Number);
+      const startMinutes = startH * 60 + startM;
+      const endMinutes = endH * 60 + endM;
+
+      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    });
+
+    return happyHourDeals.map(mapDeal).map((d: any) => ({
+      ...d,
+      // Add minutes remaining in today's window for countdown
+      minutesRemaining: (() => {
+        if (!d.dailyEnd) return 0;
+        const [endH, endM] = d.dailyEnd.split(':').map(Number);
+        return (endH * 60 + endM) - currentMinutes;
+      })(),
+    }));
   },
 
   async featured() {

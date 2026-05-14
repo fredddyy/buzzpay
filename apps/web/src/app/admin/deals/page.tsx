@@ -26,6 +26,9 @@ interface Deal {
   maxPerUser?: number;
   startsAt?: string;
   guestAccess?: boolean;
+  dailyStart?: string | null;
+  dailyEnd?: string | null;
+  activeDays?: number[];
 }
 
 interface Vendor { id: string; businessName: string; }
@@ -297,6 +300,9 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
       isFeatured: form.isFeatured,
       featuredSection: form.isFeatured ? form.featuredSection : undefined,
       guestAccess: form.guestAccess,
+      dailyStart: form.hasDailyWindow ? form.dailyStart : null,
+      dailyEnd: form.hasDailyWindow ? form.dailyEnd : null,
+      activeDays: form.hasDailyWindow ? form.activeDays : [],
     };
 
     const vendor = vendors.find(v => v.id === form.vendorId);

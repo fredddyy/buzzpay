@@ -419,7 +419,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 240,
+                    height: 320,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -428,7 +428,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       itemBuilder: (context, index) {
                         final deal = deals.featured[index];
                         return SizedBox(
-                          width: 200,
+                          width: MediaQuery.of(context).size.width * 0.55,
                           child: DealCard(
                             deal: deal,
                             isVerified: isVerified,

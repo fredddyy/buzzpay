@@ -125,6 +125,10 @@ model Deal {
   isActive      Boolean      @default(true)
   isFeatured    Boolean      @default(false)
   guestAccess   Boolean      @default(false) // visible + purchasable by unverified students
+  dailyStart    String?      // HH:mm — daily window start (WAT)
+  dailyEnd      String?      // HH:mm — daily window end (WAT)
+  activeDays    Int[]        @default([]) // 0=Sun..6=Sat — empty means every day
+  featuredSection String?    // e.g. "Hot in Akoka", "Breakfast Rush"
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
