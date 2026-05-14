@@ -21,6 +21,11 @@ class Deal {
   final DateTime startsAt;
   final DateTime expiresAt;
   final bool isFeatured;
+  final bool guestAccess;
+  final String? dailyStart;
+  final String? dailyEnd;
+  final List<int> activeDays;
+  final String? featuredSection;
   final String? vendorAddress;
 
   Deal({
@@ -44,6 +49,11 @@ class Deal {
     required this.startsAt,
     required this.expiresAt,
     required this.isFeatured,
+    this.guestAccess = false,
+    this.dailyStart,
+    this.dailyEnd,
+    this.activeDays = const [],
+    this.featuredSection,
     this.vendorAddress,
   });
 
@@ -68,6 +78,11 @@ class Deal {
         startsAt: DateTime.parse(json['startsAt'] as String),
         expiresAt: DateTime.parse(json['expiresAt'] as String),
         isFeatured: json['isFeatured'] as bool? ?? false,
+        guestAccess: json['guestAccess'] as bool? ?? false,
+        dailyStart: json['dailyStart'] as String?,
+        dailyEnd: json['dailyEnd'] as String?,
+        activeDays: (json['activeDays'] as List?)?.map((e) => e as int).toList() ?? [],
+        featuredSection: json['featuredSection'] as String?,
         vendorAddress: json['vendorAddress'] as String?,
       );
 

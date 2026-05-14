@@ -315,64 +315,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
 
-              // ──── 3. HAPPY HOUR ────
+              // ──── 3. ACTIVE TIME SLOTS (grouped by featuredSection) ────
               if (deals.happyHour.isNotEmpty) ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                    child: Row(
-                      children: [
-                        Image.asset('assets/icons/flame_3d.png',
-                            width: 22, height: 22),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Happy Hour',
-                          style: Theme.of(context).textTheme.headlineSmall,
+                ...() {
+                  // Group deals by their featuredSection name
+                  final grouped = <String, List<Deal>>{};
+                  for (final deal in deals.happyHour) {
+                    final section = deal.featuredSection ?? 'Happy Hour';
+                    grouped.putIfAbsent(section, () => []).add(deal);
+                  }
+
+                  return grouped.entries.expand((entry) {
+                    final sectionName = entry.key;
+                    final sectionDeals = entry.value;
+
+                    return [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                          child: Row(
+                            children: [
+                              Image.asset('assets/icons/flame_3d.png', width: 22, height: 22),
+                              const SizedBox(width: 6),
+                              Text(sectionName, style: Theme.of(context).textTheme.headlineSmall),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                                ),
+                                child: Text('Live now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: Text(
-                            'Ending soon',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryDark,
-                            ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: 260,
+                          child: PageView.builder(
+                            controller: PageController(viewportFraction: 0.88),
+                            itemCount: sectionDeals.length,
+                            itemBuilder: (context, index) {
+                              final deal = sectionDeals[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: HappyHourCard(deal: deal, onTap: () => context.push('/deal/${deal.id}')),
+                              );
+                            },
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 260,
-                    child: PageView.builder(
-                      controller: PageController(viewportFraction: 0.88),
-                      itemCount: deals.happyHour.length,
-                      itemBuilder: (context, index) {
-                        final deal = deals.happyHour[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: HappyHourCard(
-                            deal: deal,
-                            onTap: () => context.push('/deal/${deal.id}'),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                    ];
+                  }).toList();
+                }(),
               ],
 
               // ──── 3b. UPCOMING RUSH (starts within 2 hours) ────
