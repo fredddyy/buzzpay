@@ -138,17 +138,17 @@ export default function DealsPage() {
 
       {/* Table */}
       <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-        <div className="grid grid-cols-[1fr_90px_100px_100px_80px_100px] gap-4 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+        <div className="grid grid-cols-[1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)", letterSpacing: "0.05em" }}>
-          <span>Deal</span><span>Category</span><span>Price</span><span>Stock</span><span>Featured</span><span className="text-right">Status</span>
+          <span>Deal</span><span>Category</span><span>Price</span><span>Schedule</span><span>Stock</span><span>Featured</span><span className="text-right">Status</span>
         </div>
 
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="grid grid-cols-[1fr_90px_100px_100px_80px_100px] gap-4 px-4 py-3.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+            <div key={i} className="grid grid-cols-[1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-3.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
               <div><div className="skeleton w-32 h-3 mb-1" /><div className="skeleton w-20 h-2.5" /></div>
               <div className="skeleton w-14 h-5 rounded-full self-center" />
-              <div className="skeleton w-16 h-3 self-center" /><div className="skeleton w-full h-1.5 rounded self-center" />
+              <div className="skeleton w-16 h-3 self-center" /><div className="skeleton w-14 h-3 self-center" /><div className="skeleton w-full h-1.5 rounded self-center" />
               <div className="skeleton w-8 h-4 rounded self-center" /><div className="skeleton w-14 h-6 rounded-full self-center ml-auto" />
             </div>
           ))
@@ -159,7 +159,7 @@ export default function DealsPage() {
         ) : (
           deals.map(d => (
             <div key={d.id}
-              className="grid grid-cols-[1fr_90px_100px_100px_80px_100px] gap-4 px-4 py-3 items-center transition-colors cursor-pointer"
+              className="grid grid-cols-[1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-3 items-center transition-colors cursor-pointer"
               style={{ borderBottom: "1px solid var(--color-border)" }}
               onClick={() => setModalDeal(d)}
               onMouseEnter={e => e.currentTarget.style.background = "var(--color-surface-hover)"}
@@ -183,6 +183,28 @@ export default function DealsPage() {
               <div>
                 <span className="text-[13px] font-semibold" style={{ color: "var(--color-primary)" }}>{fmt(d.studentPrice)}</span>
                 <span className="text-[11px] ml-1 line-through" style={{ color: "var(--color-text-muted)" }}>{fmt(d.originalPrice)}</span>
+              </div>
+              <div>
+                {d.dailyStart && d.dailyEnd ? (
+                  <div>
+                    <span className="text-[11px] font-mono font-semibold" style={{ color: "var(--color-primary)" }}>
+                      {d.dailyStart}–{d.dailyEnd}
+                    </span>
+                    {d.activeDays && d.activeDays.length > 0 && d.activeDays.length < 7 && (
+                      <div className="flex gap-0.5 mt-1">
+                        {["S","M","T","W","T","F","S"].map((day, i) => (
+                          <span key={i} className="text-[8px] w-3 h-3 rounded-full flex items-center justify-center font-bold"
+                            style={{
+                              background: d.activeDays!.includes(i) ? "var(--color-primary)" : "var(--color-surface-hover)",
+                              color: d.activeDays!.includes(i) ? "white" : "var(--color-text-muted)",
+                            }}>{day}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>All day</span>
+                )}
               </div>
               <div>
                 <div className="flex justify-between text-[10px] mb-1" style={{ color: "var(--color-text-muted)" }}>
