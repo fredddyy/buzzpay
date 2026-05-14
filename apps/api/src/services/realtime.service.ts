@@ -1,38 +1,49 @@
 /**
- * Supabase Realtime broadcast service.
- * Every data mutation broadcasts here so all connected apps stay in sync.
+ * Supabase Realtime broadcast via WebSocket client (not HTTP API).
+ * Uses the same channel mechanism as Flutter clients — guaranteed delivery.
  */
 
-function getConfig() {
-  return {
-    url: process.env.SUPABASE_URL || '',
-    key: process.env.SUPABASE_SERVICE_KEY || '',
-  };
+import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
+import ws from 'ws';
+
+let supabase: SupabaseClient | null = null;
+const channels = new Map<string, RealtimeChannel>();
+
+function getClient(): SupabaseClient | null {
+  if (supabase) return supabase;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) return null;
+  supabase = createClient(url, key, {
+    realtime: { transport: ws as any },
+  });
+  return supabase;
+}
+
+function getChannel(name: string): RealtimeChannel | null {
+  const client = getClient();
+  if (!client) return null;
+
+  if (!channels.has(name)) {
+    const ch = client.channel(name, { config: { broadcast: { self: false } } });
+    ch.subscribe((status) => {
+      console.log(`[Realtime] server channel '${name}' → ${status}`);
+    });
+    channels.set(name, ch);
+  }
+  return channels.get(name)!;
 }
 
 export const realtimeService = {
   async broadcast(channel: string, event: string, payload: Record<string, unknown>) {
-    const { url, key } = getConfig();
-    if (!url || !key) return;
+    const ch = getChannel(channel);
+    if (!ch) return;
 
     try {
-      await fetch(`${url}/realtime/v1/api/broadcast`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': key,
-          'Authorization': `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          messages: [{
-            topic: `realtime:${channel}`,
-            event,
-            payload,
-          }],
-        }),
-      });
-    } catch {
-      // Non-critical
+      await ch.send({ type: 'broadcast', event, payload });
+      console.log(`[Realtime] ${channel}:${event} sent`);
+    } catch (err) {
+      console.error(`[Realtime] broadcast failed:`, err);
     }
   },
 
@@ -53,8 +64,7 @@ export const realtimeService = {
 
   async settlementProcessed(vendorId: string, amount: number) {
     await this.broadcast(`vendor:${vendorId}`, 'settlement', {
-      vendorId,
-      amount,
+      vendorId, amount,
       message: `Your settlement of ₦${(amount / 100).toLocaleString()} has been processed via Paystack`,
       timestamp: Date.now(),
     });
@@ -62,7 +72,8 @@ export const realtimeService = {
 
   // ─── Students ─────────────────────────────────────────
   async studentVerificationChanged(userId: string, studentId: string, status: string) {
-    await this.broadcast(`student:${userId}`, 'verification_change', { studentId, status, timestamp: Date.now() });
+    await this.broadcast(`student:${userId}`, 'verification_change', { studentId, userId, status, timestamp: Date.now() });
+    await this.broadcast('deals', 'verification_change', { studentId, userId, status, timestamp: Date.now() });
     await this.broadcast('admin', 'student_change', { studentId, status, timestamp: Date.now() });
   },
 

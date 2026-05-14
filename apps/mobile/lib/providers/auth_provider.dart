@@ -62,9 +62,23 @@ class AuthNotifier extends Notifier<AuthState> {
     }
     final hasTokens = await _api.hasTokens();
     if (hasTokens) {
-      state = state.copyWith(status: AuthStatus.authenticated);
+      await fetchProfile();
     } else {
       state = state.copyWith(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  Future<void> fetchProfile() async {
+    try {
+      final response = await _api.get('/auth/me');
+      final userData = response.data['data'];
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: User.fromJson(userData),
+      );
+    } catch (_) {
+      // Token might be expired, but don't log out — refresh will handle it
+      state = state.copyWith(status: AuthStatus.authenticated);
     }
   }
 
@@ -131,15 +145,29 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   /// Set authenticated after signup + verification flow (no API call needed)
-  void setAuthenticated({required String name, String? email}) {
+  void setAuthenticated({required String name, String? email, String? id}) {
     state = AuthState(
       status: AuthStatus.authenticated,
       user: User(
-        id: 'pending',
-        email: email ?? '',
+        id: id ?? state.user?.id ?? 'pending',
+        email: email ?? state.user?.email ?? '',
         fullName: name,
         role: 'STUDENT',
-        verificationStatus: 'PENDING',
+        verificationStatus: state.user?.verificationStatus ?? 'PENDING',
+      ),
+    );
+  }
+
+  void updateVerificationStatus(String status) {
+    if (state.user == null) return;
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      user: User(
+        id: state.user!.id,
+        email: state.user!.email,
+        fullName: state.user!.fullName,
+        role: state.user!.role,
+        verificationStatus: status,
       ),
     );
   }

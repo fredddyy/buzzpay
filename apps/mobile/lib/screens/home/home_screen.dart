@@ -44,6 +44,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _selectedCategory;
   bool _notifyEnabled = false;
   late final RealtimeDeals _realtime;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -57,30 +58,93 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // Subscribe to all real-time changes
     _realtime = RealtimeDeals();
-    _realtime.onDealChanged = () {
-      ref.read(dealsProvider.notifier).loadDeals(refresh: true);
-      ref.read(dealsProvider.notifier).loadFeatured();
-      ref.read(dealsProvider.notifier).loadHappyHour();
-    };
-    _realtime.onStockChanged = () {
-      // Refresh deals to get updated stock counts
-      ref.read(dealsProvider.notifier).loadDeals(refresh: true);
-    };
+    void _debouncedRefresh() {
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(const Duration(seconds: 1), () {
+        if (!mounted) return;
+        ref.read(dealsProvider.notifier).loadDeals(refresh: true);
+        ref.read(dealsProvider.notifier).loadFeatured();
+        ref.read(dealsProvider.notifier).loadHappyHour();
+      });
+    }
+
+    _realtime.onDealChanged = _debouncedRefresh;
+    _realtime.onStockChanged = _debouncedRefresh;
     _realtime.onVoucherChanged = () {
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
     };
     _realtime.onVerificationChanged = (status) {
-      // Refresh auth state when admin approves/rejects
-      ref.read(authProvider.notifier).setAuthenticated(
-        name: ref.read(authProvider).user?.fullName ?? '',
+      debugPrint('[Home] onVerificationChanged fired! status=$status');
+      if (!mounted) return;
+      if (status.isNotEmpty) {
+        ref.read(authProvider.notifier).updateVerificationStatus(status);
+      }
+      final isApproved = status == 'APPROVED';
+      showDialog(
+        context: context,
+        useRootNavigator: true,
+        builder: (_) => AlertDialog(
+          backgroundColor: AppColors.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isApproved ? Icons.check_circle : Icons.info_outline,
+                size: 56,
+                color: isApproved ? AppColors.success : AppColors.danger,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isApproved ? 'Verified!' : 'Verification Update',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isApproved
+                    ? 'Your student ID has been verified! You now have access to all exclusive deals.'
+                    : 'Your verification was not approved. Please resubmit your student ID.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+              child: Text('OK', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
       );
     };
+    // Subscribe with real user ID — retry when auth state provides one
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
     final userId = ref.read(authProvider).user?.id;
+    debugPrint('[Home] Subscribing realtime with userId: $userId');
+    _realtime.dispose(); // clean up old subscriptions
     _realtime.subscribe(studentUserId: userId);
+
+    // If userId is still pending, retry after auth settles
+    if (userId == null || userId.isEmpty || userId == 'pending') {
+      Future.delayed(const Duration(seconds: 3), () {
+        if (!mounted) return;
+        final newId = ref.read(authProvider).user?.id;
+        if (newId != null && newId != 'pending' && newId != userId) {
+          debugPrint('[Home] Re-subscribing realtime with userId: $newId');
+          _realtime.dispose();
+          _realtime.subscribe(studentUserId: newId);
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _realtime.dispose();
     super.dispose();
   }

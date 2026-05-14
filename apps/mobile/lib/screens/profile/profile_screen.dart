@@ -207,7 +207,10 @@ class ProfileScreen extends ConsumerWidget {
 
                     // Footer
                     GestureDetector(
-                      onTap: () => ref.read(authProvider.notifier).logout(),
+                      onTap: () async {
+                        await ref.read(authProvider.notifier).logout();
+                        if (context.mounted) context.go('/login');
+                      },
                       child: const Text('Log Out',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
                     ),

@@ -8,10 +8,8 @@ class SupabaseConfig {
   static bool get isConfigured => url.isNotEmpty && anonKey.isNotEmpty;
 }
 
-/// Listens for all real-time events relevant to the student app.
 class RealtimeDeals {
-  RealtimeChannel? _dealsChannel;
-  RealtimeChannel? _studentChannel;
+  RealtimeChannel? _channel;
 
   VoidCallback? onDealChanged;
   VoidCallback? onStockChanged;
@@ -20,42 +18,57 @@ class RealtimeDeals {
 
   void subscribe({String? studentUserId}) {
     if (!SupabaseConfig.isConfigured) return;
-    final client = Supabase.instance.client;
 
-    // Deal changes (create/update/toggle/feature) + stock changes
-    _dealsChannel = client.channel('deals');
-    _dealsChannel!
-        .onBroadcast(event: 'deal_change', callback: (payload) {
-          debugPrint('[Realtime] Deal changed: $payload');
-          onDealChanged?.call();
-        })
-        .onBroadcast(event: 'stock_change', callback: (payload) {
-          debugPrint('[Realtime] Stock changed: $payload');
-          onStockChanged?.call();
-        })
-        .subscribe();
+    try {
+      final client = Supabase.instance.client;
+      debugPrint('[Realtime] Subscribing...');
 
-    // Student-specific: voucher updates, verification status
-    if (studentUserId != null) {
-      _studentChannel = client.channel('student:$studentUserId');
-      _studentChannel!
-          .onBroadcast(event: 'voucher_update', callback: (payload) {
-            debugPrint('[Realtime] Voucher updated: $payload');
-            onVoucherChanged?.call();
-          })
-          .onBroadcast(event: 'verification_change', callback: (payload) {
-            debugPrint('[Realtime] Verification changed: $payload');
-            final status = payload['status'] as String? ?? '';
-            onVerificationChanged?.call(status);
-          })
-          .subscribe();
+      _channel = client.channel('deals',
+        opts: const RealtimeChannelConfig(self: true),
+      );
+
+      _channel!.onBroadcast(event: 'deal_change', callback: (payload) {
+        debugPrint('[Realtime] deal_change: $payload');
+        onDealChanged?.call();
+      });
+
+      _channel!.onBroadcast(event: 'stock_change', callback: (payload) {
+        debugPrint('[Realtime] stock_change: $payload');
+        onStockChanged?.call();
+      });
+
+      _channel!.onBroadcast(event: 'verification_change', callback: (payload) {
+        debugPrint('[Realtime] verification_change: $payload');
+        final inner = payload['payload'] as Map<String, dynamic>? ?? payload;
+        final status = inner['status'] as String? ?? payload['status'] as String? ?? '';
+        debugPrint('[Realtime] extracted status: $status');
+        onVerificationChanged?.call(status);
+      });
+
+      _channel!.onBroadcast(event: 'voucher_update', callback: (payload) {
+        debugPrint('[Realtime] voucher_update: $payload');
+        onVoucherChanged?.call();
+      });
+
+      _channel!.subscribe((status, error) {
+        debugPrint('[Realtime] channel → $status ${error ?? ""}');
+
+        // Self-test: send a broadcast to verify round-trip works
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          debugPrint('[Realtime] Sending self-test...');
+          _channel!.sendBroadcastMessage(
+            event: 'deal_change',
+            payload: {'test': 'self', 'timestamp': DateTime.now().toIso8601String()},
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[Realtime] Error: $e');
     }
   }
 
   void dispose() {
-    _dealsChannel?.unsubscribe();
-    _studentChannel?.unsubscribe();
-    _dealsChannel = null;
-    _studentChannel = null;
+    _channel?.unsubscribe();
+    _channel = null;
   }
 }

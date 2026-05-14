@@ -1049,3 +1049,9 @@ Tier 3 (Scale): Pre-order, Referrals, Group ordering
 - Student: student@unilag.edu.ng / student123456
 - Vendor: mama@buzzpay.ng / vendor123456
 - Admin: admin@buzzpay.ng / admin123456
+
+
+DATABASE_URL="postgresql://buzzpay:buzzpay_dev_2026@localhost:5432buzzpay"JWT_SECRET="buzzpay-dev-jwt-secret-change-in-production-2026"JWT_REFRESH_SECRET="buzzpay-dev-refresh-secret-change-in-production-2026" PAYSTACK_SECRET_KEY="sk_test
+  _b43a8d3362d744fb3ffd177cecbba03e9d2097dc" PAYSTACK_PUBLIC_K
+  EY="pk_test_54f2be072a5b176334434c43639201a9098fc702"
+  FRONTEND_URL="http://localhost:3001" npx tsx src/index.ts

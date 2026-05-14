@@ -61,9 +61,8 @@ export default function StudentsPage() {
   function handleSearch(v: string) { setSearch(v); setPage(1); }
 
   async function revoke(id: string) {
-    const reason = prompt("Reason for revoking verification (optional):");
     setActing(id);
-    try { await api.post(`/admin/students/${id}/revoke`, { reason }); } catch {}
+    try { await api.post(`/admin/students/${id}/revoke`, { reason: 'Revoked by admin' }); } catch {}
     setStudents(prev => prev.filter(s => s.id !== id));
     setMeta(prev => ({ ...prev, total: prev.total - 1 }));
     setActing(null);
@@ -80,10 +79,8 @@ export default function StudentsPage() {
   }
 
   async function reject(id: string) {
-    const reason = prompt("Rejection reason:");
-    if (!reason) return;
     setActing(id);
-    try { await api.post(`/admin/students/${id}/reject`, { reason }); } catch {}
+    try { await api.post(`/admin/students/${id}/reject`, { reason: adminNotes || 'Rejected by admin' }); } catch {}
     setStudents(prev => prev.filter(s => s.id !== id));
     setMeta(prev => ({ ...prev, total: prev.total - 1 }));
     setActing(null);

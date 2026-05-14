@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/mock_data.dart';
 import '../../core/theme/colors.dart';
 import '../../core/services/api_client.dart';
@@ -70,6 +71,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   }
 
   Future<void> _verify() async {
+    if (_loading) return; // prevent double-fire from auto-verify
     if (_otp.length < 6) {
       setState(() => _error = 'Enter all 6 digits');
       return;
@@ -91,12 +93,16 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       final data = response.data['data'];
 
       if (data['isNewUser'] == true) {
-        // New user — go to signup to complete profile, pass phone number
-        if (mounted) { setState(() => _loading = false); context.go('/signup', extra: {'phone': data['phone'] ?? widget.phoneNumber}); }
+        // New user — store phone for signup, then navigate
+        final verifiedPhone = data['phone'] ?? widget.phoneNumber;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('verified_phone', verifiedPhone);
+        if (mounted) { setState(() => _loading = false); context.go('/signup', extra: {'phone': verifiedPhone}); }
       } else {
-        // Existing user — save tokens, go home
+        // Existing user — save tokens, fetch profile, go home
         final tokens = data['tokens'];
         await api.saveTokens(tokens['accessToken'], tokens['refreshToken']);
+        await ref.read(authProvider.notifier).fetchProfile();
         if (mounted) { setState(() => _loading = false); context.go('/'); }
       }
     } catch (e) {

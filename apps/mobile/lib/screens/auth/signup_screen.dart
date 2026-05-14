@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/colors.dart';
 import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -16,6 +17,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _nameController = TextEditingController();
   String _selectedCampus = 'UNILAG - Akoka';
+  String _phone = '';
   bool _loading = false;
   String? _error;
 
@@ -25,6 +27,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     'LASU - Ojo',
     'FUTA - Akure',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _phone = widget.phone;
+    // Fallback: read from SharedPreferences if extra was lost during router rebuild
+    if (_phone.isEmpty) {
+      SharedPreferences.getInstance().then((prefs) {
+        final saved = prefs.getString('verified_phone') ?? '';
+        if (saved.isNotEmpty && mounted) setState(() => _phone = saved);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -39,18 +54,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.post('/auth/phone/complete-signup', data: {
-        'phone': widget.phone,
+        'phone': _phone,
         'fullName': _nameController.text.trim(),
         'university': _selectedCampus.split(' - ').first, // "UNILAG"
       });
 
       final data = response.data['data'];
       final tokens = data['tokens'];
+      final user = data['user'];
       await api.saveTokens(tokens['accessToken'], tokens['refreshToken']);
 
       if (mounted) {
         ref.read(authProvider.notifier).setAuthenticated(
-          name: _nameController.text.trim(),
+          name: user['fullName'] ?? _nameController.text.trim(),
+          id: user['id'],
+          email: user['email'],
         );
         setState(() => _loading = false);
         context.go('/');

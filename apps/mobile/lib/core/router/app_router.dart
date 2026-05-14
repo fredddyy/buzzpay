@@ -19,15 +19,12 @@ import '../../screens/vendor/vendor_profile_screen.dart';
 import '../../screens/shell/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-
   return GoRouter(
     initialLocation: '/',
     redirect: (context, state) async {
       final loc = state.matchedLocation;
       final isOnboarding = loc == '/onboarding';
 
-      // Check if onboarding is done (works in both mock and real mode)
       final prefs = await SharedPreferences.getInstance();
       final onboardingDone = prefs.getBool('onboarding_done') ?? false;
 
@@ -35,11 +32,18 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (useMockData) return null;
 
-      final isAuth = authState.status == AuthStatus.authenticated;
-      final isAuthRoute = loc == '/login' || loc == '/signup' || isOnboarding || loc == '/phone' || loc.startsWith('/otp');
+      final authState = ref.read(authProvider);
+      final hasTokens = prefs.getString('access_token') != null;
+      final isAuth = authState.status == AuthStatus.authenticated || hasTokens;
+
+      // Fetch profile if tokens exist but user data is missing
+      if (hasTokens && authState.user == null) {
+        ref.read(authProvider.notifier).fetchProfile();
+      }
+      final isAuthRoute = loc == '/login' || loc == '/signup' || loc == '/verify' || isOnboarding || loc == '/phone' || loc.startsWith('/otp');
 
       if (!isAuth && !isAuthRoute) return '/login';
-      if (isAuth && isAuthRoute) return '/';
+      if (isAuth && isAuthRoute && loc != '/verify') return '/';
       return null;
     },
     routes: [
