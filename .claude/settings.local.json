@@ -22,7 +22,8 @@
       "Bash(taskkill //PID 35112 //F)",
       "Bash(DATABASE_URL=\"postgresql://buzzpay:buzzpay_dev_2026@localhost:5432/buzzpay\" npx prisma generate)",
       "Bash(git add:*)",
-      "Bash(git commit -m ':*)"
+      "Bash(git commit -m ':*)",
+      "Bash(git commit:*)"
     ]
   }
 }

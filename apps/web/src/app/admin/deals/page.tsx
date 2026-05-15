@@ -74,8 +74,23 @@ export default function DealsPage() {
   }, [page, search, category, status]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { loadVendors(); }, []);
+  const [campaigns, setCampaigns] = useState<{ name: string; preview: string; start: string; end: string; days: number[] }[]>([]);
+  useEffect(() => { loadVendors(); loadCampaigns(); }, []);
   useEffect(() => subscribeAdmin({ onDealChanged: load }), [load]);
+
+  async function loadCampaigns() {
+    try {
+      const res = await api.get("/admin/campaigns");
+      const camps = (res.data.data || []).map((c: any) => ({
+        name: c.featuredSection || c.name,
+        preview: c.previewStart || "",
+        start: c.dailyStart || "",
+        end: c.dailyEnd || "",
+        days: c.activeDays || [0,1,2,3,4,5,6],
+      }));
+      setCampaigns(camps);
+    } catch {}
+  }
 
   async function loadVendors() {
     try {
@@ -332,6 +347,7 @@ export default function DealsPage() {
         <DealModal
           deal={modalDeal === "new" ? undefined : modalDeal}
           vendors={vendors}
+          campaignPresets={campaigns}
           onClose={() => setModalDeal(null)}
           onSaved={handleSaved}
         />
@@ -354,9 +370,10 @@ const SECTION_PRESETS: { name: string; preview: string; start: string; end: stri
 ];
 const DAY_LABELS = ["S","M","T","W","T","F","S"];
 
-function DealModal({ deal, vendors, onClose, onSaved }: {
+function DealModal({ deal, vendors, campaignPresets, onClose, onSaved }: {
   deal?: Deal;
   vendors: Vendor[];
+  campaignPresets?: { name: string; preview: string; start: string; end: string; days: number[] }[];
   onClose: () => void;
   onSaved: (deal: Deal, isEdit: boolean) => void;
 }) {
@@ -605,7 +622,7 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
                   <input value={form.featuredSection} onChange={e => update("featuredSection", e.target.value)}
                     placeholder="e.g. Hot in Akoka" style={inputStyle} />
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {SECTION_PRESETS.map(s => (
+                    {[...SECTION_PRESETS, ...(campaignPresets || [])].filter((s, i, arr) => arr.findIndex(x => x.name === s.name) === i).map(s => (
                       <button key={s.name} type="button"
                         onClick={() => {
                           setForm(prev => ({
