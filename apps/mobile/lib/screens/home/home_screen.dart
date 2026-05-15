@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -391,32 +392,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 }(),
               ],
 
-              // ──── 3b. UPCOMING RUSH (starts within 2 hours) ────
+              // ──── 3b. UPCOMING RUSH (preview state deals) ────
               if (deals.upcoming.isNotEmpty && _selectedCategory == null) ...[
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        const Text('⏰ ', style: TextStyle(fontSize: 16)),
-                        Text('Coming Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text('Soon', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                        ),
-                      ],
-                    ),
+                    child: _sectionHeader(context, title: 'Dropping Soon'),
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 100,
+                    height: 170,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -424,43 +411,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       separatorBuilder: (_, __) => const SizedBox(width: 10),
                       itemBuilder: (context, index) {
                         final deal = deals.upcoming[index];
-                        final startsIn = (deal as dynamic).startsInMinutes as int? ?? 0;
+                        final startsIn = deal.startsInMinutes;
+                        final dropTime = deal.dailyStart ?? '';
                         return GestureDetector(
                           onTap: () => context.push('/deal/${deal.id}'),
                           child: Container(
-                            width: 220,
-                            padding: const EdgeInsets.all(12),
+                            width: 140,
                             decoration: BoxDecoration(
                               color: AppColors.card,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
                             ),
-                            child: Row(
+                            child: Stack(
                               children: [
-                                Container(
-                                  width: 48, height: 48,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: AppColors.primary.withValues(alpha: 0.08),
-                                  ),
-                                  child: Center(child: Text('⏰', style: TextStyle(fontSize: 22))),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                // Blurred food image
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: Stack(
                                     children: [
-                                      Text(deal.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                                      const SizedBox(height: 2),
-                                      Text(deal.vendorName, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        startsIn <= 60 ? 'Starts in ${startsIn}m' : 'Starts in ${startsIn ~/ 60}h ${startsIn % 60}m',
-                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                      if (deal.imageUrl != null)
+                                        ImageFiltered(
+                                          imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                                          child: Image.network(deal.imageUrl!, height: 170, width: 140, fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(height: 170, color: AppColors.primary.withValues(alpha: 0.06))),
+                                        )
+                                      else
+                                        Container(height: 170, width: 140, color: AppColors.primary.withValues(alpha: 0.06)),
+                                      // Dark gradient overlay
+                                      Positioned.fill(
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                                              colors: [Colors.black.withValues(alpha: 0.1), Colors.black.withValues(alpha: 0.65)],
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ],
+                                  ),
+                                ),
+                                // Remind me bell
+                                Positioned(
+                                  top: 8, right: 8,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.mediumImpact();
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                        content: Text('We\'ll remind you when ${deal.title} drops!'),
+                                        backgroundColor: AppColors.primary,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        duration: const Duration(seconds: 2),
+                                      ));
+                                    },
+                                    child: Container(
+                                      width: 28, height: 28,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
+                                      ),
+                                      child: const Center(child: Text('🔔', style: TextStyle(fontSize: 13))),
+                                    ),
+                                  ),
+                                ),
+                                // Bottom info
+                                Positioned(
+                                  bottom: 0, left: 0, right: 0,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(deal.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                                        const SizedBox(height: 2),
+                                        Text(deal.vendorName,
+                                          style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.7))),
+                                        const SizedBox(height: 6),
+                                        // "Dropping at" pill
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFA726).withValues(alpha: 0.9), // warm amber
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            dropTime.isNotEmpty ? 'Drops at $dropTime' : 'Dropping soon',
+                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
