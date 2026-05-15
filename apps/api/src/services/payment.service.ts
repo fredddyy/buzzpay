@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { nanoid } from 'nanoid';
+import { nanoid, customAlphabet } from 'nanoid';
+const voucherCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { voucherRepository } from '../repositories/voucher.repository.js';
 import { dealRepository } from '../repositories/deal.repository.js';
@@ -82,7 +83,7 @@ export const paymentService = {
       studentId: user.student.id,
       dealId: payment.dealId,
       paymentId: payment.id,
-      code: nanoid(VOUCHER_CODE_LENGTH).toUpperCase(),
+      code: voucherCode(VOUCHER_CODE_LENGTH),
       qrData: uuidv4(),
       expiresAt,
     });
@@ -120,7 +121,7 @@ export const paymentService = {
             studentId: user.student.id,
             dealId: payment.dealId,
             paymentId: payment.id,
-            code: nanoid(VOUCHER_CODE_LENGTH).toUpperCase(),
+            code: voucherCode(VOUCHER_CODE_LENGTH),
             qrData: uuidv4(),
             expiresAt,
           });
