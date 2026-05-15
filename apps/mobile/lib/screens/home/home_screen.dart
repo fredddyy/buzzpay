@@ -912,8 +912,12 @@ class _UpcomingCardState extends State<_UpcomingCard> {
                     shape: BoxShape.circle,
                     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
                   ),
-                  child: Center(child: Text(_reminded ? '✓' : '🔔',
-                    style: TextStyle(fontSize: _reminded ? 14 : 13, color: _reminded ? Colors.white : null))),
+                  child: _reminded
+                    ? const Center(child: Icon(Icons.check, size: 16, color: Colors.white))
+                    : Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: Image.asset('assets/icons/bell_3d.png', fit: BoxFit.contain),
+                      ),
                 ),
               ),
             ),
