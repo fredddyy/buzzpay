@@ -23,14 +23,14 @@ class TrendingCircle extends StatelessWidget {
 
   String get _shortName {
     final name = _name;
-    if (name.length <= 14) return name;
+    if (name.length <= 12) return name;
     final words = name.split(' ');
     if (words.length >= 2) {
       final short = '${words[0]} ${words[1]}';
-      if (short.length > 14) return '${words[0]}\'s';
-      return '$short\'s';
+      if (short.length > 12) return words[0];
+      return short;
     }
-    return '${name.substring(0, 12)}…';
+    return '${name.substring(0, 10)}...';
   }
 
   @override
@@ -38,61 +38,68 @@ class TrendingCircle extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 76,
+        width: 80,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: isNew
-                    ? const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [AppColors.primary, AppColors.primaryLight],
-                      )
-                    : null,
-                color: isNew ? null : AppColors.border.withValues(alpha: 0.5),
-              ),
-              padding: const EdgeInsets.all(2.5),
-              child: Container(
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.card,
+            // Avatar — no border, soft shadow, larger
+            Stack(
+              children: [
+                Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.card,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 12,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: _imageUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: _imageUrl!,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => _fallbackAvatar(),
+                            errorWidget: (_, __, ___) => _fallbackAvatar(),
+                          )
+                        : _fallbackAvatar(),
+                  ),
                 ),
-                padding: const EdgeInsets.all(2),
-                child: ClipOval(
-                  child: _imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: _imageUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(color: const Color(0xFFF5F5F5)),
-                          errorWidget: (_, __, ___) => _placeholder(),
-                        )
-                      : _placeholder(),
+                // Fire badge — bottom right
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4)],
+                    ),
+                    child: const Center(child: Text('🔥', style: TextStyle(fontSize: 10))),
+                  ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 6),
+            // Vendor name — bold, centered
             Text(
               _shortName,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.text, height: 1.2),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+                height: 1.2,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🔥 ', style: TextStyle(fontSize: 9)),
-                Text(
-                  deal != null ? '${(deal!.totalQuantity - deal!.remainingQty) + 80}' : '',
-                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-                ),
-              ],
             ),
           ],
         ),
@@ -100,13 +107,19 @@ class TrendingCircle extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() => Container(
-    color: const Color(0xFFF5F5F5),
-    child: Center(
-      child: Text(
-        _name.isNotEmpty ? _name[0] : '?',
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary),
+  Widget _fallbackAvatar() {
+    return Container(
+      color: AppColors.primary.withValues(alpha: 0.06),
+      child: Center(
+        child: Text(
+          _name.isNotEmpty ? _name[0] : '?',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primary.withValues(alpha: 0.6),
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
