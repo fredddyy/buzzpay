@@ -702,6 +702,20 @@ export const adminController = {
     } catch (err) { next(err); }
   },
 
+  async deleteCampaign(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+      const campaign = await prisma.campaign.findUnique({ where: { id }, include: { _count: { select: { deals: true } } } });
+      if (!campaign) throw new AppError(404, 'Campaign not found');
+
+      // Unlink deals from campaign (don't delete the deals themselves)
+      await prisma.deal.updateMany({ where: { campaignId: id }, data: { campaignId: null } });
+      await prisma.campaign.delete({ where: { id } });
+
+      res.json({ success: true, data: { id, deleted: true } });
+    } catch (err) { next(err); }
+  },
+
   // ─── QR Code Management ───────────────────────────────────
 
   async listVendorQrCodes(req: Request, res: Response, next: NextFunction) {

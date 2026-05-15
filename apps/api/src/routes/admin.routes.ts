@@ -23,6 +23,7 @@ router.get('/campaigns', adminController.listCampaigns);
 router.post('/campaigns', adminController.createCampaign);
 router.post('/campaigns/:campaignId/deals', adminController.addDealToCampaign);
 router.post('/campaigns/:id/publish', adminController.publishCampaign);
+router.delete('/campaigns/:id', adminController.deleteCampaign);
 
 // Vendors
 router.get('/vendors', adminController.listVendors);
