@@ -69,11 +69,19 @@ class _PaystackWebViewState extends State<PaystackWebView> {
   // Also try injecting JS to detect success state on Paystack page
   void _checkForSuccessViaJs() {
     _controller.runJavaScriptReturningResult(
-      'document.querySelector(".success-page") != null || document.body.innerText.includes("Payment Successful")'
+      '''(function() {
+        var text = document.body ? document.body.innerText : "";
+        return text.indexOf("Payment Successful") >= 0 ||
+               text.indexOf("Transaction Successful") >= 0 ||
+               text.indexOf("Your payment was successful") >= 0 ||
+               text.indexOf("You paid") >= 0 ||
+               document.querySelector(".success-page") != null ||
+               document.querySelector("[class*=success]") != null;
+      })()'''
     ).then((result) {
-      if (result.toString() == 'true' && !_done) {
+      if ((result.toString() == 'true' || result == true) && !_done) {
         _done = true;
-        Navigator.of(context).pop('success');
+        if (mounted) Navigator.of(context).pop('success');
       }
     }).catchError((_) {});
   }
@@ -82,7 +90,13 @@ class _PaystackWebViewState extends State<PaystackWebView> {
   Widget build(BuildContext context) {
     // Periodically check for success via JS (fallback)
     if (!_loading && !_done) {
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted && !_done) _checkForSuccessViaJs();
+      });
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted && !_done) _checkForSuccessViaJs();
+      });
+      Future.delayed(const Duration(seconds: 6), () {
         if (mounted && !_done) _checkForSuccessViaJs();
       });
     }
