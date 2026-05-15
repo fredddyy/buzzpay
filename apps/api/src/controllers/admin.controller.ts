@@ -345,7 +345,7 @@ export const adminController = {
 
   async createVendor(req: Request, res: Response, next: NextFunction) {
     try {
-      const { businessName, businessAddress, businessPhone, campus, opensAt, closesAt, commissionRate, email, ownerName } = req.body;
+      const { businessName, businessAddress, businessPhone, campus, opensAt, closesAt, commissionRate, email, ownerName, logoUrl } = req.body;
 
       if (!email || !ownerName) throw new AppError(400, 'Owner name and email are required');
 
@@ -368,6 +368,7 @@ export const adminController = {
               opensAt: opensAt || '08:00',
               closesAt: closesAt || '21:00',
               commissionRate: commissionRate ? parseFloat(commissionRate) / 100 : 0.10,
+              logoUrl: logoUrl || null,
             },
           },
         },
