@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
@@ -7,6 +8,11 @@ import 'core/services/supabase_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Clear stale voucher cache on fresh start
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('cached_vouchers');
+  await prefs.remove('cached_vouchers_at');
 
   if (SupabaseConfig.isConfigured) {
     await Supabase.initialize(
