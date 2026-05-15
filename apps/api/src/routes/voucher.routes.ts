@@ -11,5 +11,6 @@ router.get('/:id', authenticate, voucherController.getById);
 router.get('/:id/qr', authenticate, voucherController.getRotatingQr);
 router.post('/:id/redeem', authenticate, requireRole('VENDOR'), validate(redeemByQrSchema), voucherController.redeemByQr);
 router.post('/redeem-rotating', authenticate, requireRole('VENDOR'), voucherController.redeemByRotatingQr);
+router.post('/redeem', authenticate, requireRole('VENDOR'), voucherController.redeemByStaticQr);
 
 export default router;

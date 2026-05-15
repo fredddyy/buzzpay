@@ -64,9 +64,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
     });
 
     try {
-      final data = await _api.redeemRotatingQr(qrPayload);
+      Map<String, dynamic> data;
+      if (qrPayload.startsWith('bp://')) {
+        // Rotating QR format
+        data = await _api.redeemRotatingQr(qrPayload);
+      } else {
+        // Static QR (UUID) or manual code — try legacy redeem
+        data = await _api.redeemByStaticQr(qrPayload);
+      }
       if (!mounted) return;
-      // ── CONFIRMED: update with real data ──
       setState(() {
         _result = _ScanResult(
           success: true,

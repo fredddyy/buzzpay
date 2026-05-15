@@ -89,11 +89,10 @@ class VendorApiClient {
     return response.data['data'];
   }
 
-  /// Redeem by manual code entry (legacy static codes)
-  Future<Map<String, dynamic>> redeemByCode(String code) async {
-    // Look up voucher by code, then redeem via QR data
-    final response = await _dio.post('/vouchers/redeem-rotating', data: {
-      'qrPayload': code, // Backend will try both formats
+  /// Redeem by static QR data (UUID) or manual code
+  Future<Map<String, dynamic>> redeemByStaticQr(String qrData) async {
+    final response = await _dio.post('/vouchers/redeem', data: {
+      'qrData': qrData,
     });
     return response.data['data'];
   }

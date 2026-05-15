@@ -45,6 +45,17 @@ export const voucherController = {
     res.json({ success: true, data: result });
   },
 
+  async redeemByStaticQr(req: Request, res: Response) {
+    try {
+      const { qrData } = req.body;
+      if (!qrData) { res.status(400).json({ success: false, message: 'qrData required' }); return; }
+      const result = await voucherService.redeemByQr(qrData, req.user!.userId);
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ success: false, message: err.message });
+    }
+  },
+
   async redeemByRotatingQr(req: Request, res: Response) {
     try {
       const { qrPayload } = req.body;
