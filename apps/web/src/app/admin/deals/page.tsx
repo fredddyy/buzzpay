@@ -232,6 +232,12 @@ export default function DealsPage() {
                       {d.featuredSection}
                     </span>
                   )}
+                  {(d as any).tags?.length > 0 && (d as any).tags.map((t: string) => (
+                    <span key={t} className="text-[8px] font-semibold px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--color-info-surface)", color: "var(--color-info)" }}>
+                      #{t}
+                    </span>
+                  ))}
                 </div>
               </div>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit"
