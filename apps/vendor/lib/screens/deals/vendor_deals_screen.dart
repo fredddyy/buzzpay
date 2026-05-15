@@ -28,6 +28,7 @@ class _VendorDealsScreenState extends State<VendorDealsScreen> {
     if (!SupabaseConfig.isConfigured) return;
     _channel = Supabase.instance.client.channel('deals');
     _channel!.onBroadcast(event: 'deal_change', callback: (_) => _load());
+    _channel!.onBroadcast(event: 'stock_change', callback: (_) => _load());
     _channel!.subscribe();
   }
 

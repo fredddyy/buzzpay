@@ -92,6 +92,7 @@ export const paymentService = {
 
     // Broadcast: payment completed, stock changed, voucher created
     realtimeService.paymentCompleted(payment.id, payment.dealId, payment.amount);
+    realtimeService.dealChanged(payment.dealId, 'updated');
     realtimeService.stockChanged(payment.dealId, -1);
     realtimeService.voucherStatusChanged(user.id, payment.id, 'ACTIVE');
   },

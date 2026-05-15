@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/colors.dart';
 import '../../core/api_client.dart';
+import '../../core/supabase_config.dart';
 
 class PayoutsScreen extends StatefulWidget {
   const PayoutsScreen({super.key});
@@ -12,6 +14,7 @@ class PayoutsScreen extends StatefulWidget {
 class _PayoutsScreenState extends State<PayoutsScreen> {
   final _api = VendorApiClient();
   bool _loading = true;
+  RealtimeChannel? _channel;
   int _todayEarnings = 0;
   int _monthEarnings = 0;
   int _pendingPayout = 0;
@@ -22,6 +25,21 @@ class _PayoutsScreenState extends State<PayoutsScreen> {
   void initState() {
     super.initState();
     _load();
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    if (!SupabaseConfig.isConfigured) return;
+    _channel = Supabase.instance.client.channel('deals');
+    _channel!.onBroadcast(event: 'deal_change', callback: (_) => _load());
+    _channel!.onBroadcast(event: 'stock_change', callback: (_) => _load());
+    _channel!.subscribe();
+  }
+
+  @override
+  void dispose() {
+    _channel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _load() async {
