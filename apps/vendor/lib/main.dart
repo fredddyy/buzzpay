@@ -9,6 +9,7 @@ import 'core/supabase_config.dart';
 import 'screens/scanner/scanner_screen.dart';
 import 'screens/deals/vendor_deals_screen.dart';
 import 'screens/payouts/payouts_screen.dart';
+import 'screens/profile/vendor_profile_screen.dart';
 import 'screens/auth/vendor_login_screen.dart';
 
 void main() async {
@@ -43,6 +44,7 @@ final _router = GoRouter(
         GoRoute(path: '/scanner', builder: (_, __) => const ScannerScreen()),
         GoRoute(path: '/deals', builder: (_, __) => const VendorDealsScreen()),
         GoRoute(path: '/payouts', builder: (_, __) => const PayoutsScreen()),
+        GoRoute(path: '/profile', builder: (_, __) => const VendorProfileScreen()),
       ],
     ),
   ],
@@ -69,14 +71,14 @@ class _VendorShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
-    final idx = loc == '/deals' ? 1 : loc == '/payouts' ? 2 : 0;
+    final idx = loc == '/deals' ? 1 : loc == '/payouts' ? 2 : loc == '/profile' ? 3 : 0;
 
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: idx,
         onDestinationSelected: (i) {
-          context.go(['/scanner', '/deals', '/payouts'][i]);
+          context.go(['/scanner', '/deals', '/payouts', '/profile'][i]);
         },
         height: 64,
         backgroundColor: const Color(0xFF161819),
@@ -85,6 +87,7 @@ class _VendorShell extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.qr_code_scanner), label: 'Scanner'),
           NavigationDestination(icon: Icon(Icons.restaurant_menu), label: 'Deals'),
           NavigationDestination(icon: Icon(Icons.account_balance_wallet), label: 'Payouts'),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),
     );
