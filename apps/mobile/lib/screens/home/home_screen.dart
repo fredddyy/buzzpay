@@ -44,6 +44,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _selectedCategory;
   bool _notifyEnabled = false;
   late final RealtimeDeals _realtime;
+  final _scrollController = ScrollController();
+  static const _feedLimit = 6; // curated home feed limit
   Timer? _debounceTimer;
 
   @override
@@ -151,8 +153,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _scrollController.dispose();
     _realtime.dispose();
     super.dispose();
+  }
+
+  void scrollToTop() {
+    _scrollController.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
   }
 
   @override
@@ -177,6 +184,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             await ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
           },
           child: CustomScrollView(
+            controller: _scrollController,
             slivers: [
               // ──── HEADER ────
               SliverToBoxAdapter(
@@ -676,7 +684,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                 )
-              else
+              else ...[
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   sliver: SliverGrid(
@@ -695,11 +703,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onTap: () => context.push('/deal/${deal.id}'),
                         );
                       },
-                      childCount: deals.deals.length,
+                      childCount: deals.deals.length > _feedLimit ? _feedLimit : deals.deals.length,
                     ),
                   ),
                 ),
 
+                // ──── 6. FOOTER ────
+                if (deals.deals.length > _feedLimit)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                      child: GestureDetector(
+                        onTap: () => context.push('/explore', extra: {'mode': 'all'}),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('Explore All ${deals.total} Deals',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                              const SizedBox(width: 6),
+                              Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.primary),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(40, 24, 40, 0),
+                      child: Column(
+                        children: [
+                          Image.asset('assets/icons/checkmark_3d.png', width: 40, height: 40,
+                            errorBuilder: (_, __, ___) => Icon(Icons.check_circle, size: 40, color: AppColors.success)),
+                          const SizedBox(height: 8),
+                          Text("You're all caught up!", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+                          const SizedBox(height: 4),
+                          Text('New deals drop every morning at 8 AM', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+
+              // Bottom padding for nav bar
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ),
