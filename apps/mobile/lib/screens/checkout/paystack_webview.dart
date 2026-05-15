@@ -19,6 +19,7 @@ class PaystackWebView extends StatefulWidget {
 class _PaystackWebViewState extends State<PaystackWebView> {
   late final WebViewController _controller;
   bool _loading = true;
+  bool _done = false;
 
   @override
   void initState() {
@@ -28,19 +29,12 @@ class _PaystackWebViewState extends State<PaystackWebView> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) => setState(() => _loading = true),
-          onPageFinished: (_) => setState(() => _loading = false),
+          onPageFinished: (url) {
+            setState(() => _loading = false);
+            _checkUrl(url);
+          },
           onNavigationRequest: (request) {
-            final url = request.url;
-            // Detect Paystack callback — payment done
-            if (url.contains('callback') ||
-                url.contains('trxref=') ||
-                url.contains('reference=')) {
-              Navigator.of(context).pop('success');
-              return NavigationDecision.prevent;
-            }
-            // Detect cancel
-            if (url.contains('cancel') || url.contains('close')) {
-              Navigator.of(context).pop('cancelled');
+            if (_checkUrl(request.url)) {
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
@@ -50,8 +44,49 @@ class _PaystackWebViewState extends State<PaystackWebView> {
       ..loadRequest(Uri.parse(widget.authorizationUrl));
   }
 
+  bool _checkUrl(String url) {
+    if (_done) return false;
+
+    // Detect Paystack callback — payment done
+    if (url.contains('callback') ||
+        url.contains('trxref=') ||
+        url.contains('reference=') ||
+        url.contains('paystack.co/charge/success') ||
+        url.contains('paystack.co/close')) {
+      _done = true;
+      Navigator.of(context).pop('success');
+      return true;
+    }
+    // Detect cancel
+    if (url.contains('cancel') || url.contains('/close')) {
+      _done = true;
+      Navigator.of(context).pop('cancelled');
+      return true;
+    }
+    return false;
+  }
+
+  // Also try injecting JS to detect success state on Paystack page
+  void _checkForSuccessViaJs() {
+    _controller.runJavaScriptReturningResult(
+      'document.querySelector(".success-page") != null || document.body.innerText.includes("Payment Successful")'
+    ).then((result) {
+      if (result.toString() == 'true' && !_done) {
+        _done = true;
+        Navigator.of(context).pop('success');
+      }
+    }).catchError((_) {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Periodically check for success via JS (fallback)
+    if (!_loading && !_done) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && !_done) _checkForSuccessViaJs();
+      });
+    }
+
     return Scaffold(
       backgroundColor: AppColors.card,
       appBar: AppBar(
@@ -60,7 +95,7 @@ class _PaystackWebViewState extends State<PaystackWebView> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop('cancelled'),
+          onPressed: () => Navigator.of(context).pop(_done ? 'success' : 'cancelled'),
         ),
       ),
       body: Stack(
