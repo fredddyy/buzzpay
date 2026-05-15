@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/mock_data.dart';
 import '../../core/theme/colors.dart';
@@ -146,7 +147,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             width: 64,
                             height: 64,
                             child: deal.imageUrl != null
-                                ? CachedNetworkImage(imageUrl: deal.imageUrl!, fit: BoxFit.cover)
+                                ? _buildImage(deal.imageUrl!)
                                 : Container(
                                     color: AppColors.background,
                                     child: const Icon(Icons.fastfood, color: AppColors.primary, size: 28),
@@ -349,6 +350,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildImage(String url) {
+    final fallback = Container(color: AppColors.background, child: const Icon(Icons.fastfood, color: AppColors.primary, size: 28));
+    if (url.startsWith('data:image')) {
+      try { return Image.memory(base64Decode(url.split(',').last), fit: BoxFit.cover, gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => fallback); } catch (_) { return fallback; }
+    }
+    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, errorWidget: (_, __, ___) => fallback);
   }
 
   String _fmtKobo(int kobo) {
