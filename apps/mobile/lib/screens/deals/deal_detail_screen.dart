@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -456,6 +457,20 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildHeroImage(String url) {
+    if (url.startsWith('data:image')) {
+      try {
+        final b64 = url.split(',').last;
+        return Image.memory(base64Decode(b64), fit: BoxFit.cover, gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => Container(color: AppColors.primary.withValues(alpha: 0.1),
+            child: const Center(child: Icon(Icons.fastfood, size: 64, color: AppColors.primary))));
+      } catch (_) {}
+    }
+    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+      errorWidget: (_, __, ___) => Container(color: AppColors.primary.withValues(alpha: 0.1),
+        child: const Center(child: Icon(Icons.fastfood, size: 64, color: AppColors.primary))));
   }
 
   String _formatNaira(int kobo) {
