@@ -77,7 +77,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _openPaystackWebView(String reference, String authUrl) async {
-    final result = await Navigator.of(context).push<String>(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PaystackWebView(
           authorizationUrl: authUrl,
@@ -86,11 +86,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ),
     );
 
-    if (result == 'success') {
-      await _verifyAndNavigate(reference);
-    } else {
-      setState(() => _paying = false);
-    }
+    // Always verify after WebView closes — if paid, creates voucher
+    if (mounted) await _verifyAndNavigate(reference);
   }
 
   Future<void> _verifyAndNavigate(String reference) async {
