@@ -23,6 +23,7 @@ class DealDetailScreen extends ConsumerStatefulWidget {
 class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
   Deal? _deal;
   bool _loading = true;
+  int _qty = 1;
 
   @override
   void initState() {
@@ -225,6 +226,72 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 16),
+
+                      // ──── QUANTITY STEPPER ────
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('Quantity', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () { if (_qty > 1) setState(() => _qty--); },
+                              child: Container(
+                                width: 32, height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _qty > 1 ? AppColors.primary.withValues(alpha: 0.1) : AppColors.border.withValues(alpha: 0.3),
+                                ),
+                                child: Icon(Icons.remove, size: 18, color: _qty > 1 ? AppColors.primary : AppColors.textTertiary),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text('$_qty', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                if (_qty < deal.maxPerUser && _qty < deal.remainingQty) setState(() => _qty++);
+                              },
+                              child: Container(
+                                width: 32, height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: (_qty < deal.maxPerUser && _qty < deal.remainingQty)
+                                    ? AppColors.primary : AppColors.border.withValues(alpha: 0.3),
+                                ),
+                                child: Icon(Icons.add, size: 18,
+                                  color: (_qty < deal.maxPerUser && _qty < deal.remainingQty)
+                                    ? AppColors.primary : AppColors.textTertiary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_qty > 1) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Text('${_qty}x ${deal.formattedStudentPrice}',
+                                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                              const Spacer(),
+                              Text('You save ${_formatNaira(deal.savings * _qty)}',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.success)),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
 
                       // ──── ICON-LED ATTRIBUTES ────
@@ -373,7 +440,7 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                     padding: EdgeInsets.zero,
                   ),
                   child: Text(
-                    deal.isSoldOut ? 'Sold Out' : 'Pay ${deal.formattedStudentPrice}',
+                    deal.isSoldOut ? 'Sold Out' : 'Pay ${_formatNaira(deal.studentPrice * _qty)}',
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -383,6 +450,11 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
         ],
       ),
     );
+  }
+
+  String _formatNaira(int kobo) {
+    final naira = kobo ~/ 100;
+    return '₦${naira.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
   }
 
   Widget _attribute(IconData icon, String title, String subtitle) {
