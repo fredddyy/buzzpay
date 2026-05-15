@@ -70,6 +70,18 @@ class _HappyHourCardState extends State<HappyHourCard> {
     return '$m:$s';
   }
 
+  Widget _buildDealImage(String url) {
+    final fallback = Container(color: const Color(0xFFF5F5F5));
+    if (url.startsWith('data:image')) {
+      try {
+        return Image.memory(base64Decode(url.split(',').last), fit: BoxFit.cover, gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => fallback);
+      } catch (_) { return fallback; }
+    }
+    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+      placeholder: (_, __) => fallback, errorWidget: (_, __, ___) => fallback);
+  }
+
   Widget _buildVendorImage(String url, String name) {
     final fallback = Center(child: Text(name.substring(0, 1),
       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)));
@@ -127,12 +139,7 @@ class _HappyHourCardState extends State<HappyHourCard> {
                   fit: StackFit.expand,
                   children: [
                     deal.imageUrl != null
-                        ? CachedNetworkImage(
-                            imageUrl: deal.imageUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(color: const Color(0xFFF5F5F5)),
-                            errorWidget: (_, __, ___) => Container(color: const Color(0xFFF5F5F5)),
-                          )
+                        ? _buildDealImage(deal.imageUrl!)
                         : Container(
                             color: const Color(0xFFF5F5F5),
                             child: const Center(

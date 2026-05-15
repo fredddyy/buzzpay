@@ -62,12 +62,7 @@ class DealCard extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     deal.imageUrl != null
-                        ? CachedNetworkImage(
-                            imageUrl: deal.imageUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => _placeholder(),
-                            errorWidget: (_, __, ___) => _placeholder(),
-                          )
+                        ? _buildDealImage(deal.imageUrl!)
                         : _placeholder(),
                     // Gradient overlay
                     Positioned(
@@ -239,6 +234,21 @@ class DealCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildDealImage(String url) {
+    if (url.startsWith('data:image')) {
+      try {
+        final b64 = url.split(',').last;
+        return Image.memory(base64Decode(b64), fit: BoxFit.cover, gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => _placeholder());
+      } catch (_) {
+        return _placeholder();
+      }
+    }
+    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+      placeholder: (_, __) => _placeholder(),
+      errorWidget: (_, __, ___) => _placeholder());
   }
 
   Widget _placeholder() {

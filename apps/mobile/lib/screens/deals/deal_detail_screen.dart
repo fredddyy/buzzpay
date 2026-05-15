@@ -97,10 +97,7 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                       height: 320,
                       width: double.infinity,
                       child: deal.imageUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: deal.imageUrl!,
-                              fit: BoxFit.cover,
-                            )
+                          ? _buildHeroImage(deal.imageUrl!)
                           : Container(
                               color: AppColors.primary.withValues(alpha: 0.1),
                               child: const Center(
