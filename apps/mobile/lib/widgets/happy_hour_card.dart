@@ -295,6 +295,16 @@ class _HappyHourCardState extends State<HappyHourCard> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 4),
+                        // Stock count
+                        Text(
+                          '${deal.remainingQty}/${deal.totalQuantity} left',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: deal.remainingQty <= 5 ? AppColors.danger : AppColors.textTertiary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
