@@ -81,6 +81,7 @@ export const realtimeService = {
   // ─── Vouchers ─────────────────────────────────────────
   async voucherStatusChanged(studentUserId: string, voucherId: string, status: string) {
     await this.broadcast(`student:${studentUserId}`, 'voucher_update', { voucherId, status, timestamp: Date.now() });
+    await this.broadcast('deals', 'voucher_update', { voucherId, studentUserId, status, timestamp: Date.now() });
   },
 
   async voucherRedeemed(voucherId: string, dealId: string, vendorId: string) {

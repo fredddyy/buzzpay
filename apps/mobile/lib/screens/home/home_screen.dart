@@ -81,6 +81,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _realtime.onStockChanged = _debouncedRefresh;
     _realtime.onVoucherChanged = () {
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text('Voucher redeemed by vendor!'),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 3),
+        ));
+      }
     };
     _realtime.onVerificationChanged = (status) {
       debugPrint('[Home] onVerificationChanged fired! status=$status');
