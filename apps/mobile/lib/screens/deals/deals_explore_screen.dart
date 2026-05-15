@@ -120,7 +120,12 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
                         prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textTertiary),
                         filled: true,
                         fillColor: AppColors.card,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: AppColors.border.withValues(alpha: 0.3))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
                         contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
@@ -255,31 +260,32 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
                       : Container(height: 110, color: AppColors.background,
                           child: const Center(child: Icon(Icons.restaurant, color: AppColors.textTertiary))),
                 ),
-                // Single discount badge
+                // Single discount badge — rounded to match card
                 if (deal.discountPercent > 0)
                   Positioned(
                     top: 8, left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
                       child: Text('-${deal.discountPercent}%', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
                     ),
                   ),
-                // Frosted glass closed overlay
+                // Frosted glass closed overlay — stronger blur
                 if (isClosed)
                   Positioned.fill(
                     child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                       child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                         child: Container(
-                          color: Colors.white.withValues(alpha: 0.4),
+                          color: Colors.white.withValues(alpha: 0.5),
                           alignment: Alignment.center,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white.withValues(alpha: 0.95),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
                             ),
                             child: Text('Opens at ${deal.vendorOpensAt}',
                               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.text)),
@@ -298,9 +304,9 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Vendor name — small, muted
+                    // Vendor name — small, readable contrast
                     Text(deal.vendorName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                     const SizedBox(height: 3),
                     // Deal name — bold, clear
                     Text(deal.title, maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -314,19 +320,38 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary)),
                         const SizedBox(width: 4),
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 1),
+                          padding: const EdgeInsets.only(bottom: 2),
                           child: Text(deal.formattedOriginalPrice,
-                            style: TextStyle(fontSize: 10, color: AppColors.textTertiary, decoration: TextDecoration.lineThrough)),
+                            style: TextStyle(fontSize: 9, color: AppColors.textTertiary, decoration: TextDecoration.lineThrough)),
                         ),
                       ],
                     ),
-                    // Subtle stock indicator
-                    if (deal.remainingQty <= 10)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text('Only ${deal.remainingQty} left',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.danger)),
+                    // Stock progress bar + fire icon when low
+                    if (deal.totalQuantity > 0) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: LinearProgressIndicator(
+                                value: deal.remainingQty / deal.totalQuantity,
+                                minHeight: 2.5,
+                                backgroundColor: AppColors.border.withValues(alpha: 0.3),
+                                valueColor: AlwaysStoppedAnimation(
+                                  deal.remainingQty <= 5 ? AppColors.danger : AppColors.primary.withValues(alpha: 0.4),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (deal.remainingQty <= 5) ...[
+                            const SizedBox(width: 4),
+                            const Text('🔥', style: TextStyle(fontSize: 9)),
+                            Text(' ${deal.remainingQty}', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.danger)),
+                          ],
+                        ],
                       ),
+                    ],
                   ],
                 ),
               ),
