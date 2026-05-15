@@ -61,15 +61,15 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
       final res = await api.get('/vendors/${widget.vendorId}');
       final data = res.data['data'];
       _vendor = Vendor(
-        id: data['id'], businessName: data['businessName'],
+        id: data['id'],
+        businessName: data['businessName'],
         businessAddress: data['businessAddress'] ?? '',
-        businessPhone: data['businessPhone'] ?? '',
         logoUrl: data['logoUrl'],
-        opensAt: data['opensAt'] ?? '08:00', closesAt: data['closesAt'] ?? '21:00',
-        isActive: data['isActive'] ?? true,
+        isOpen: true,
+        opensAt: data['opensAt'] ?? '08:00',
+        closesAt: data['closesAt'] ?? '21:00',
         buzzTags: const ['Campus Favorite'],
-        isFollowed: false, followerCount: 0,
-        menu: [],
+        isFollowed: false,
       );
       _deals = ((data['deals'] ?? []) as List).map((d) => Deal.fromJson(d)).toList();
     } catch (_) {
