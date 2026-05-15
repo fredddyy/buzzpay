@@ -286,6 +286,7 @@ function VendorModal({ vendor, onClose, onSaved }: {
   const isEdit = !!vendor;
   const [form, setForm] = useState({
     businessName: vendor?.businessName || "",
+    logoUrl: (vendor as any)?.logoUrl || "",
     businessAddress: vendor?.businessAddress || "",
     businessPhone: vendor?.businessPhone || "",
     campus: vendor?.campus || "UNILAG - Akoka",
@@ -375,6 +376,35 @@ function VendorModal({ vendor, onClose, onSaved }: {
         )}
 
         <form onSubmit={submit} className="space-y-3">
+          {/* Vendor Logo */}
+          <div className="flex items-center gap-4 mb-1">
+            <label className="cursor-pointer">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden"
+                style={{ background: "var(--color-surface-light)", border: form.logoUrl ? "none" : "2px dashed var(--color-border)" }}>
+                {form.logoUrl ? (
+                  <img src={form.logoUrl} alt="" className="w-full h-full object-cover rounded-2xl" />
+                ) : (
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ color: "var(--color-text-muted)" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0z" />
+                  </svg>
+                )}
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (ev) => update("logoUrl", ev.target?.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }} />
+            </label>
+            <div>
+              <p className="text-[12px] font-medium" style={{ color: "var(--color-text)" }}>Vendor Logo</p>
+              <p className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>Shown in trending circles on student app</p>
+            </div>
+          </div>
+
           <div>
             <label style={labelStyle}>Business Name *</label>
             <input value={form.businessName} onChange={e => update("businessName", e.target.value)}

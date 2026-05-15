@@ -107,19 +107,44 @@ class TrendingCircle extends StatelessWidget {
     );
   }
 
+  String? get _category => deal?.category;
+
   Widget _fallbackAvatar() {
+    // Use 3D icon based on vendor's primary category
+    final icon = _get3dIcon(_category);
+    if (icon != null) {
+      return Container(
+        color: AppColors.primary.withValues(alpha: 0.04),
+        padding: const EdgeInsets.all(14),
+        child: Image.asset(icon, fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _letterFallback()),
+      );
+    }
+    return _letterFallback();
+  }
+
+  Widget _letterFallback() {
     return Container(
       color: AppColors.primary.withValues(alpha: 0.06),
       child: Center(
         child: Text(
           _name.isNotEmpty ? _name[0] : '?',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AppColors.primary.withValues(alpha: 0.6),
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800,
+            color: AppColors.primary.withValues(alpha: 0.6)),
         ),
       ),
     );
+  }
+
+  static String? _get3dIcon(String? category) {
+    return switch (category) {
+      'FOOD' => 'assets/icons/food_3d.png',
+      'DRINKS' => 'assets/icons/coins_3d.png',
+      'LIFESTYLE' => 'assets/icons/gift_3d.png',
+      'TRANSPORT' => 'assets/icons/ticket_3d.png',
+      'SHOPPING' => 'assets/icons/handcard_3d.png',
+      'SUBSCRIPTIONS' => 'assets/icons/letter_3d.png',
+      _ => null,
+    };
   }
 }

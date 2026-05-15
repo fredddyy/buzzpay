@@ -322,6 +322,7 @@ export const adminController = {
         return {
           id: v.id,
           businessName: v.businessName,
+          logoUrl: v.logoUrl,
           businessAddress: v.businessAddress,
           businessPhone: v.businessPhone,
           isActive: v.isActive,
@@ -384,7 +385,7 @@ export const adminController = {
   async updateVendor(req: Request, res: Response, next: NextFunction) {
     try {
       const id = req.params.id as string;
-      const { businessName, businessAddress, businessPhone, opensAt, closesAt, commissionRate, isActive } = req.body;
+      const { businessName, businessAddress, businessPhone, opensAt, closesAt, commissionRate, isActive, logoUrl } = req.body;
 
       const vendor = await prisma.vendor.findUnique({ where: { id } });
       if (!vendor) throw new AppError(404, 'Vendor not found');
@@ -399,6 +400,7 @@ export const adminController = {
           ...(closesAt !== undefined && { closesAt }),
           ...(commissionRate !== undefined && { commissionRate: typeof commissionRate === 'string' ? parseFloat(commissionRate) / 100 : commissionRate }),
           ...(isActive !== undefined && { isActive }),
+          ...(logoUrl !== undefined && { logoUrl }),
         },
       });
 
