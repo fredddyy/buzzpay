@@ -70,7 +70,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final reference = data['reference'] as String;
       if (mounted) await _openPaystackWebView(reference, data['authorizationUrl'] as String);
     } catch (e) {
-      setState(() { _paying = false; _error = 'Payment failed. Try again.'; });
+      String msg = 'Payment failed. Try again.';
+      try { msg = (e as dynamic).response?.data?['message'] ?? msg; } catch (_) {}
+      setState(() { _paying = false; _error = msg; });
     }
   }
 
