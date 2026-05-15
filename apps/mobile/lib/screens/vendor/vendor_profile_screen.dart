@@ -9,6 +9,7 @@ import '../../core/mock_data.dart';
 import '../../models/vendor.dart';
 import '../../models/deal.dart';
 import '../../models/loyalty.dart';
+import '../../providers/api_provider.dart';
 import '../../widgets/deal_card.dart';
 import '../../widgets/loyalty_sticker_row.dart';
 import '../../widgets/price_display.dart';
@@ -25,7 +26,9 @@ class VendorProfileScreen extends ConsumerStatefulWidget {
 
 class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
     with SingleTickerProviderStateMixin {
-  late Vendor _vendor;
+  Vendor? _vendor;
+  List<Deal> _deals = [];
+  bool _loading = true;
   bool _isFollowed = false;
   late AnimationController _heartController;
   late Animation<double> _heartScale;
@@ -42,8 +45,38 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
       TweenSequenceItem(tween: Tween(begin: 1.3, end: 0.9), weight: 30),
       TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.0), weight: 30),
     ]).animate(CurvedAnimation(parent: _heartController, curve: Curves.easeOut));
-    _vendor = mockVendorsMap[widget.vendorId] ?? mockVendorsMap.values.first;
-    _isFollowed = _vendor.isFollowed;
+
+    if (useMockData) {
+      _vendor = mockVendorsMap[widget.vendorId] ?? mockVendorsMap.values.first;
+      _isFollowed = _vendor!.isFollowed;
+      _loading = false;
+    } else {
+      _loadVendor();
+    }
+  }
+
+  Future<void> _loadVendor() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final res = await api.get('/vendors/${widget.vendorId}');
+      final data = res.data['data'];
+      _vendor = Vendor(
+        id: data['id'], businessName: data['businessName'],
+        businessAddress: data['businessAddress'] ?? '',
+        businessPhone: data['businessPhone'] ?? '',
+        logoUrl: data['logoUrl'],
+        opensAt: data['opensAt'] ?? '08:00', closesAt: data['closesAt'] ?? '21:00',
+        isActive: data['isActive'] ?? true,
+        buzzTags: const ['Campus Favorite'],
+        isFollowed: false, followerCount: 0,
+        menu: [],
+      );
+      _deals = ((data['deals'] ?? []) as List).map((d) => Deal.fromJson(d)).toList();
+    } catch (_) {
+      // Fallback to mock if API fails
+      _vendor = mockVendorsMap[widget.vendorId] ?? mockVendorsMap.values.first;
+    }
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
@@ -73,13 +106,23 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    final activeDeals = _vendor.deals
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_vendor == null) {
+      return Scaffold(appBar: AppBar(), body: const Center(child: Text('Vendor not found')));
+    }
+    final vendor = _vendor!;
+
+    // Use API deals if available, otherwise vendor's embedded deals
+    final vendorDeals = _deals.isNotEmpty ? _deals : vendor.deals;
+    final activeDeals = vendorDeals
         .where((d) =>
             d.expiresAt.isAfter(DateTime.now()) &&
             d.expiresAt.difference(DateTime.now()).inMinutes <= 60)
         .toList();
     final allDeals =
-        _vendor.deals.where((d) => d.expiresAt.isAfter(DateTime.now())).toList();
+        vendorDeals.where((d) => d.expiresAt.isAfter(DateTime.now())).toList();
 
     return Scaffold(
       backgroundColor: AppColors.card,
@@ -96,9 +139,9 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
                     SizedBox(
                       height: 280,
                       width: double.infinity,
-                      child: _vendor.coverUrl != null
+                      child: vendor.coverUrl != null
                           ? CachedNetworkImage(
-                              imageUrl: _vendor.coverUrl!,
+                              imageUrl: vendor.coverUrl!,
                               fit: BoxFit.cover,
                             )
                           : Container(color: AppColors.primary),
@@ -198,7 +241,7 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
                           ),
                           child: Center(
                             child: Text(
-                              _vendor.businessName.substring(0, 1),
+                              vendor.businessName.substring(0, 1),
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
@@ -222,12 +265,12 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
                       children: [
                         // Vendor name + subtitle
                         Text(
-                        _vendor.businessName,
+                        vendor.businessName,
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${_vendor.totalStudents} students · ${_vendor.businessAddress}',
+                        '${vendor.totalStudents} students · ${vendor.businessAddress}',
                         style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -239,13 +282,13 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
                         child: Row(
                           children: [
                             _pill(
-                              _vendor.isOpen ? 'Open' : 'Closed',
-                              color: _vendor.isOpen ? AppColors.success : AppColors.danger,
+                              vendor.isOpen ? 'Open' : 'Closed',
+                              color: vendor.isOpen ? AppColors.success : AppColors.danger,
                               dot: true,
                             ),
-                            _pill('⭐ ${_vendor.rating}'),
-                            _pill('🕒 ${_vendor.opensAtFormatted}–${_vendor.closesAtFormatted}'),
-                            ..._vendor.buzzTags.map((t) => _pill(t)),
+                            _pill('⭐ ${vendor.rating}'),
+                            _pill('🕒 ${vendor.opensAtFormatted}–${vendor.closesAtFormatted}'),
+                            ...vendor.buzzTags.map((t) => _pill(t)),
                           ],
                         ),
                       ),
@@ -334,11 +377,11 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                   child: LoyaltyCardWidget(
                     card: mockLoyaltyCards.firstWhere(
-                      (lc) => lc.vendorId == _vendor.id,
-                      orElse: () => LoyaltyCard(id: 'new', vendorId: _vendor.id, vendorName: _vendor.businessName, stamps: 0, target: 5, rewardsUsed: 0),
+                      (lc) => lc.vendorId == vendor.id,
+                      orElse: () => LoyaltyCard(id: 'new', vendorId: vendor.id, vendorName: vendor.businessName, stamps: 0, target: 5, rewardsUsed: 0),
                     ),
                     onClaim: () {
-                      _showRewardTicket(context, _vendor.businessName);
+                      _showRewardTicket(context, vendor.businessName);
                     },
                   ),
                 ),
@@ -379,7 +422,7 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          '· ${_vendor.businessAddress}',
+                          '· ${vendor.businessAddress}',
                           style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

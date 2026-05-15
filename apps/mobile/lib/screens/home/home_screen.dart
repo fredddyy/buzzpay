@@ -83,12 +83,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _realtime.onVoucherChanged = () {
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
       if (mounted) {
+        // Close any open voucher sheet/modal
+        final nav = Navigator.of(context, rootNavigator: true);
+        if (nav.canPop()) nav.pop();
+
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Row(
             children: [
               Icon(Icons.check_circle, color: Colors.white, size: 20),
               SizedBox(width: 10),
-              Text('Voucher redeemed by vendor!'),
+              Expanded(child: Text('Voucher redeemed by vendor!')),
             ],
           ),
           backgroundColor: AppColors.success,
