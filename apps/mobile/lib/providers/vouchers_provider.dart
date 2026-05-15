@@ -62,7 +62,7 @@ class VouchersNotifier extends Notifier<VouchersState> {
       final vouchers =
           (data['vouchers'] as List).map((v) => Voucher.fromJson(v)).toList();
 
-      // Cache active vouchers for offline use
+      // Always overwrite cache with fresh API data (clears stale ghost vouchers)
       await VoucherCache.cacheVouchers(vouchers);
 
       state = state.copyWith(vouchers: vouchers, isLoading: false, isOffline: false);
