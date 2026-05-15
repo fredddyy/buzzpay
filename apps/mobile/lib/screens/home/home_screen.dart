@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -205,7 +206,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             await ref.read(dealsProvider.notifier).loadHappyHour();
             await ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
           },
-          child: CustomScrollView(
+          child: deals.isLoading && deals.deals.isEmpty
+            ? _shimmerSkeleton()
+            : CustomScrollView(
             controller: _scrollController,
             slivers: [
               // ──── HEADER ────
@@ -738,6 +741,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _shimmerSkeleton() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+      child: Shimmer.fromColors(
+        baseColor: AppColors.border.withValues(alpha: 0.3),
+        highlightColor: AppColors.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header skeleton
+            Row(
+              children: [
+                Container(width: 120, height: 28, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+                const Spacer(),
+                Container(width: 28, height: 28, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Container(width: 200, height: 14, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
+            const SizedBox(height: 20),
+            // Category pills skeleton
+            Row(
+              children: List.generate(5, (_) => Container(
+                width: 60, height: 32, margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              )),
+            ),
+            const SizedBox(height: 24),
+            // Section header skeleton
+            Container(width: 160, height: 20, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+            const SizedBox(height: 14),
+            // Card skeleton
+            Container(height: 220, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18))),
+            const SizedBox(height: 24),
+            // Trending circles skeleton
+            Container(width: 140, height: 18, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+            const SizedBox(height: 12),
+            Row(
+              children: List.generate(4, (_) => Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Column(
+                  children: [
+                    Container(width: 68, height: 68, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                    const SizedBox(height: 6),
+                    Container(width: 50, height: 10, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                  ],
+                ),
+              )),
+            ),
+            const SizedBox(height: 24),
+            // Deal grid skeleton
+            Container(width: 120, height: 18, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8))),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(child: Container(height: 200, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)))),
+                const SizedBox(width: 12),
+                Expanded(child: Container(height: 200, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)))),
+              ],
+            ),
+          ],
         ),
       ),
     );
