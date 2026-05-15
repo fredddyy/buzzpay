@@ -397,119 +397,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _sectionHeader(context, title: 'Dropping Soon'),
+                    child: _sectionHeader(context, title: 'Dropping Soon', seeAll: true,
+                      onSeeAll: () => context.push('/explore', extra: {'mode': 'hot'})),
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 170,
+                    height: 180,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: deals.upcoming.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
                       itemBuilder: (context, index) {
                         final deal = deals.upcoming[index];
-                        final startsIn = deal.startsInMinutes;
                         final dropTime = deal.dailyStart ?? '';
-                        return GestureDetector(
-                          onTap: () => context.push('/deal/${deal.id}'),
-                          child: Container(
-                            width: 140,
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
-                            ),
-                            child: Stack(
-                              children: [
-                                // Blurred food image
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(18),
-                                  child: Stack(
-                                    children: [
-                                      if (deal.imageUrl != null)
-                                        ImageFiltered(
-                                          imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                                          child: Image.network(deal.imageUrl!, height: 170, width: 140, fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => Container(height: 170, color: AppColors.primary.withValues(alpha: 0.06))),
-                                        )
-                                      else
-                                        Container(height: 170, width: 140, color: AppColors.primary.withValues(alpha: 0.06)),
-                                      // Dark gradient overlay
-                                      Positioned.fill(
-                                        child: DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                                              colors: [Colors.black.withValues(alpha: 0.1), Colors.black.withValues(alpha: 0.65)],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // Remind me bell
-                                Positioned(
-                                  top: 8, right: 8,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.mediumImpact();
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                        content: Text('We\'ll remind you when ${deal.title} drops!'),
-                                        backgroundColor: AppColors.primary,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                        duration: const Duration(seconds: 2),
-                                      ));
-                                    },
-                                    child: Container(
-                                      width: 28, height: 28,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.9),
-                                        shape: BoxShape.circle,
-                                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
-                                      ),
-                                      child: const Center(child: Text('🔔', style: TextStyle(fontSize: 13))),
-                                    ),
-                                  ),
-                                ),
-                                // Bottom info
-                                Positioned(
-                                  bottom: 0, left: 0, right: 0,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(10),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(deal.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                                        const SizedBox(height: 2),
-                                        Text(deal.vendorName,
-                                          style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.7))),
-                                        const SizedBox(height: 6),
-                                        // "Dropping at" pill
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFFFA726).withValues(alpha: 0.9), // warm amber
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Text(
-                                            dropTime.isNotEmpty ? 'Drops at $dropTime' : 'Dropping soon',
-                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
+                        return _UpcomingCard(deal: deal, dropTime: dropTime);
                       },
                     ),
                   ),
@@ -921,6 +825,132 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _UpcomingCard extends StatefulWidget {
+  final Deal deal;
+  final String dropTime;
+  const _UpcomingCard({required this.deal, required this.dropTime});
+
+  @override
+  State<_UpcomingCard> createState() => _UpcomingCardState();
+}
+
+class _UpcomingCardState extends State<_UpcomingCard> {
+  bool _reminded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final deal = widget.deal;
+    return GestureDetector(
+      onTap: () => context.push('/deal/${deal.id}'),
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        child: Stack(
+          children: [
+            // Blurred food image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Stack(
+                children: [
+                  if (deal.imageUrl != null)
+                    ImageFiltered(
+                      imageFilter: ImageFilter.blur(sigmaX: 2.5, sigmaY: 2.5),
+                      child: Image.network(deal.imageUrl!, height: 180, width: 160, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(height: 180, width: 160, color: AppColors.primary.withValues(alpha: 0.06))),
+                    )
+                  else
+                    Container(height: 180, width: 160, color: AppColors.primary.withValues(alpha: 0.06)),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: [Colors.black.withValues(alpha: 0.05), Colors.black.withValues(alpha: 0.7)],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Bell — toggles state
+            Positioned(
+              top: 8, right: 8,
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.heavyImpact();
+                  setState(() => _reminded = !_reminded);
+                  if (_reminded) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Row(
+                        children: [
+                          const Text('🔔 ', style: TextStyle(fontSize: 16)),
+                          Expanded(child: Text('We\'ll remind you when ${deal.title} drops!')),
+                        ],
+                      ),
+                      backgroundColor: AppColors.primary,
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 60),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      duration: const Duration(seconds: 2),
+                    ));
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 30, height: 30,
+                  decoration: BoxDecoration(
+                    color: _reminded ? AppColors.primary : Colors.white.withValues(alpha: 0.9),
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
+                  ),
+                  child: Center(child: Text(_reminded ? '✓' : '🔔',
+                    style: TextStyle(fontSize: _reminded ? 14 : 13, color: _reminded ? Colors.white : null))),
+                ),
+              ),
+            ),
+            // Bottom info with text shadow
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(deal.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
+                        shadows: [Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 4)])),
+                    const SizedBox(height: 3),
+                    Text(deal.vendorName,
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.75),
+                        shadows: [Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 3)])),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFA726),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        widget.dropTime.isNotEmpty ? 'Drops at ${widget.dropTime}' : 'Dropping soon',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
