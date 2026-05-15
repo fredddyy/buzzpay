@@ -89,6 +89,24 @@ export default function DealsPage() {
   function fmt(kobo: number) { return `₦${(kobo / 100).toLocaleString("en-NG")}`; }
   function stockPct(d: Deal) { return d.totalQuantity > 0 ? d.remainingQty / d.totalQuantity : 1; }
 
+  function toggleCheck(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    setChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function toggleAllDeals() {
+    setChecked(deals.length > 0 && checked.size === deals.length ? new Set() : new Set(deals.map(d => d.id)));
+  }
+  async function bulkDelete() {
+    if (checked.size === 0 || !confirm(`Delete ${checked.size} deal(s) permanently?`)) return;
+    setDeleting(true);
+    for (const id of checked) {
+      try { await api.delete(`/admin/deals/${id}`); } catch {}
+    }
+    setChecked(new Set());
+    setDeleting(false);
+    load();
+  }
+
   async function deleteDeal(e: React.MouseEvent, id: string) {
     e.stopPropagation();
     if (!confirm('Delete this deal permanently?')) return;
@@ -118,6 +136,8 @@ export default function DealsPage() {
   }
 
   const [cloneDeal, setCloneDeal] = useState<Deal | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   function handleSearch(v: string) { setSearch(v); setPage(1); }
   function handleCategory(v: string) { setCategory(v); setPage(1); }
@@ -145,17 +165,41 @@ export default function DealsPage() {
         <FilterPills options={STATUS_FILTERS} selected={status} onChange={handleStatus} />
       </div>
 
+      {/* Batch action bar */}
+      {checked.size > 0 && (
+        <div className="flex items-center gap-3 mb-3 px-4 py-2.5 rounded-xl"
+          style={{ background: "var(--color-error-surface)", border: "1px solid var(--color-error-border)" }}>
+          <span className="text-[12px] font-semibold" style={{ color: "var(--color-error)" }}>
+            {checked.size} deal{checked.size > 1 ? "s" : ""} selected
+          </span>
+          <button onClick={bulkDelete} disabled={deleting}
+            className="ml-auto px-3 py-1.5 rounded-lg text-[12px] font-semibold disabled:opacity-50"
+            style={{ background: "var(--color-error)", color: "white" }}>
+            {deleting ? "Deleting..." : "Delete Selected"}
+          </button>
+          <button onClick={() => setChecked(new Set())}
+            className="px-2 py-1 rounded text-[11px]"
+            style={{ color: "var(--color-text-muted)" }}>
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-        <div className="grid grid-cols-[1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
+        <div className="grid grid-cols-[32px_1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)", letterSpacing: "0.05em" }}>
+          <span className="flex items-center">
+            <input type="checkbox" checked={deals.length > 0 && checked.size === deals.length}
+              onChange={toggleAllDeals} className="accent-[#6C4FFF] w-3.5 h-3.5 cursor-pointer" />
+          </span>
           <span>Deal</span><span>Category</span><span>Price</span><span>Schedule</span><span>Stock</span><span>Featured</span><span className="text-right">Status</span>
         </div>
 
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="grid grid-cols-[1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-3.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
-              <div><div className="skeleton w-32 h-3 mb-1" /><div className="skeleton w-20 h-2.5" /></div>
+            <div key={i} className="grid grid-cols-[32px_1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-3.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <div /><div><div className="skeleton w-32 h-3 mb-1" /><div className="skeleton w-20 h-2.5" /></div>
               <div className="skeleton w-14 h-5 rounded-full self-center" />
               <div className="skeleton w-16 h-3 self-center" /><div className="skeleton w-14 h-3 self-center" /><div className="skeleton w-full h-1.5 rounded self-center" />
               <div className="skeleton w-8 h-4 rounded self-center" /><div className="skeleton w-14 h-6 rounded-full self-center ml-auto" />
@@ -168,11 +212,16 @@ export default function DealsPage() {
         ) : (
           deals.map(d => (
             <div key={d.id}
-              className="grid grid-cols-[1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-3 items-center transition-colors cursor-pointer"
+              className="grid grid-cols-[32px_1fr_90px_100px_110px_100px_80px_100px] gap-4 px-4 py-3 items-center transition-colors cursor-pointer"
               style={{ borderBottom: "1px solid var(--color-border)" }}
               onClick={() => setModalDeal(d)}
               onMouseEnter={e => e.currentTarget.style.background = "var(--color-surface-hover)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <span className="flex items-center" onClick={e => e.stopPropagation()}>
+                <input type="checkbox" checked={checked.has(d.id)}
+                  onChange={() => { setChecked(prev => { const n = new Set(prev); n.has(d.id) ? n.delete(d.id) : n.add(d.id); return n; }); }}
+                  className="accent-[#6C4FFF] w-3.5 h-3.5 cursor-pointer" />
+              </span>
               <div className="min-w-0">
                 <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{d.title}</p>
                 <div className="flex items-center gap-1.5">
