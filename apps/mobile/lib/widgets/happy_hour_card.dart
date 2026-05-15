@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/theme/colors.dart';
@@ -59,6 +61,20 @@ class _HappyHourCardState extends State<HappyHourCard> {
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     if (h > 0) return '$h:$m:$s';
     return '$m:$s';
+  }
+
+  Widget _buildVendorImage(String url, String name) {
+    if (url.startsWith('data:image')) {
+      try {
+        final b64 = url.split(',').last;
+        return Image.memory(base64Decode(b64), fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(child: Text(name.substring(0, 1),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary))));
+      } catch (_) {}
+    }
+    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+      errorWidget: (_, __, ___) => Center(child: Text(name.substring(0, 1),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary))));
   }
 
   double get _progress {
@@ -221,10 +237,7 @@ class _HappyHourCardState extends State<HappyHourCard> {
                               ),
                               child: ClipOval(
                                 child: deal.vendorLogo != null
-                                    ? CachedNetworkImage(
-                                        imageUrl: deal.vendorLogo!,
-                                        fit: BoxFit.cover,
-                                      )
+                                    ? _buildVendorImage(deal.vendorLogo!, deal.vendorName)
                                     : Center(
                                         child: Text(
                                           deal.vendorName.substring(0, 1),
