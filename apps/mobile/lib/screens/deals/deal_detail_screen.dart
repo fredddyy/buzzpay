@@ -256,17 +256,18 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                             ),
                             GestureDetector(
                               onTap: () {
-                                if (_qty < deal.maxPerUser && _qty < deal.remainingQty) setState(() => _qty++);
+                                final maxQty = deal.remainingQty.clamp(1, 10);
+                                if (_qty < maxQty) setState(() => _qty++);
                               },
                               child: Container(
                                 width: 32, height: 32,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: (_qty < deal.maxPerUser && _qty < deal.remainingQty)
+                                  color: _qty < deal.remainingQty.clamp(1, 10)
                                     ? AppColors.primary : AppColors.border.withValues(alpha: 0.3),
                                 ),
                                 child: Icon(Icons.add, size: 18,
-                                  color: (_qty < deal.maxPerUser && _qty < deal.remainingQty)
+                                  color: _qty < deal.remainingQty.clamp(1, 10)
                                     ? AppColors.primary : AppColors.textTertiary),
                               ),
                             ),
