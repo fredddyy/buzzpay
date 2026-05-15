@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../core/theme/colors.dart';
@@ -61,12 +62,7 @@ class TrendingCircle extends StatelessWidget {
                   ),
                   child: ClipOval(
                     child: _imageUrl != null
-                        ? CachedNetworkImage(
-                            imageUrl: _imageUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => _fallbackAvatar(),
-                            errorWidget: (_, __, ___) => _fallbackAvatar(),
-                          )
+                        ? _buildImage(_imageUrl!)
                         : _fallbackAvatar(),
                   ),
                 ),
@@ -108,6 +104,23 @@ class TrendingCircle extends StatelessWidget {
   }
 
   String? get _category => deal?.category;
+
+  Widget _buildImage(String url) {
+    if (url.startsWith('data:image')) {
+      try {
+        final b64 = url.split(',').last;
+        return Image.memory(base64Decode(b64), fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _fallbackAvatar());
+      } catch (_) {
+        return _fallbackAvatar();
+      }
+    }
+    return CachedNetworkImage(
+      imageUrl: url, fit: BoxFit.cover,
+      placeholder: (_, __) => _fallbackAvatar(),
+      errorWidget: (_, __, ___) => _fallbackAvatar(),
+    );
+  }
 
   Widget _fallbackAvatar() {
     // Use 3D icon based on vendor's primary category
