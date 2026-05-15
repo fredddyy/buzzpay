@@ -131,6 +131,7 @@ model Deal {
   activeDays    Int[]        @default([]) // 0=Sun..6=Sat — empty means every day
   isRecurring   Boolean      @default(false) // repeats daily within startsAt–expiresAt
   featuredSection String?    // e.g. "Hot in Akoka", "Breakfast Rush"
+  tags          String[]     @default([]) // e.g. ["shawarma", "wraps", "late-night"]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 

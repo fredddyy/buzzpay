@@ -307,6 +307,7 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
     expiresAt: deal?.expiresAt ? new Date(deal.expiresAt).toISOString().slice(0, 16) : new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
     isFeatured: deal?.isFeatured || false,
     guestAccess: deal?.guestAccess || false,
+    tags: ((deal as any)?.tags || []).join(", "),
     featuredSection: deal?.featuredSection || "",
     hasDailyWindow: (deal as any)?.dailyStart ? true : false,
     dailyStart: (deal as any)?.dailyStart || "08:00",
@@ -349,6 +350,7 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
       previewStart: form.hasDailyWindow ? form.previewStart : null,
       activeDays: form.hasDailyWindow ? form.activeDays : [],
       isRecurring: form.hasDailyWindow,
+      tags: form.tags ? form.tags.split(",").map((t: string) => t.trim().toLowerCase()).filter(Boolean) : [],
     };
 
     const vendor = vendors.find(v => v.id === form.vendorId);
@@ -419,6 +421,13 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
             <label style={labelStyle}>Description</label>
             <textarea value={form.description} onChange={e => update("description", e.target.value)}
               placeholder="Brief description" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Tags</label>
+            <input value={form.tags} onChange={e => update("tags", e.target.value)}
+              placeholder="shawarma, wraps, late-night (comma separated)" style={inputStyle} />
+            <p className="text-[10px] mt-1" style={{ color: "var(--color-text-muted)" }}>Deals with shared tags appear in collection rows on the student feed</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

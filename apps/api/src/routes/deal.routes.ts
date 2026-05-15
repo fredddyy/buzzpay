@@ -10,6 +10,7 @@ router.get('/', authenticate, validate(dealFilterSchema, 'query'), dealControlle
 router.get('/happy-hour', authenticate, dealController.happyHour);
 router.get('/upcoming', authenticate, dealController.upcoming);
 router.get('/featured', authenticate, dealController.featured);
+router.get('/collections', authenticate, dealController.collections);
 router.get('/:id', authenticate, dealController.getById);
 
 export default router;

@@ -113,6 +113,7 @@ function mapDeal(d: any) {
     activeDays: d.activeDays ?? [],
     isRecurring: d.isRecurring ?? false,
     featuredSection: d.featuredSection ?? null,
+    tags: d.tags ?? [],
     // Computed lifecycle
     dealStatus: lifecycle.status,
     canRedeem: lifecycle.canRedeem,
@@ -203,6 +204,30 @@ export const dealService = {
         return (h * 60 + m) - currentMinutes;
       })(),
     }));
+  },
+
+  async collections() {
+    const allDeals = await dealRepository.findActive({ page: 1, limit: 100 });
+    const tagMap = new Map<string, any[]>();
+
+    for (const d of allDeals.deals) {
+      if (!d.tags || d.tags.length === 0) continue;
+      for (const tag of d.tags) {
+        if (!tagMap.has(tag)) tagMap.set(tag, []);
+        tagMap.get(tag)!.push(d);
+      }
+    }
+
+    // Only return collections with 2+ deals
+    const collections = Array.from(tagMap.entries())
+      .filter(([, deals]) => deals.length >= 2)
+      .map(([tag, deals]) => ({
+        tag,
+        title: tag.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        deals: deals.map(mapDeal),
+      }));
+
+    return collections;
   },
 
   async featured() {

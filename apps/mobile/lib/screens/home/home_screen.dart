@@ -55,6 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref.read(dealsProvider.notifier).loadHappyHour();
       ref.read(dealsProvider.notifier).loadTrendingVendors();
       ref.read(dealsProvider.notifier).loadUpcoming();
+      ref.read(dealsProvider.notifier).loadCollections();
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
     });
 
@@ -68,6 +69,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ref.read(dealsProvider.notifier).loadFeatured();
         ref.read(dealsProvider.notifier).loadHappyHour();
         ref.read(dealsProvider.notifier).loadUpcoming();
+        ref.read(dealsProvider.notifier).loadCollections();
         ref.read(dealsProvider.notifier).loadTrendingVendors();
       });
     }
@@ -525,6 +527,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
+
+              // ──── 4c. COLLECTION ROWS (tag-based, e.g. "Best Wraps in Akoka") ────
+              if (deals.collections.isNotEmpty && _selectedCategory == null) ...[
+                ...deals.collections.expand((col) => [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _sectionHeader(context, title: col.title, seeAll: true),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 140,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: col.deals.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final deal = col.deals[index];
+                          return GestureDetector(
+                            onTap: () => context.push('/deal/${deal.id}'),
+                            child: Container(
+                              width: 180,
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Image
+                                  ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                    child: deal.imageUrl != null
+                                        ? Image.network(deal.imageUrl!, height: 75, width: 180, fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(height: 75, color: AppColors.background))
+                                        : Container(height: 75, color: AppColors.background),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(deal.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            Text(deal.formattedStudentPrice,
+                                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                                            const SizedBox(width: 4),
+                                            Text(deal.vendorName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                ]),
               ],
 
               // ──── 5. MAIN FEED ────

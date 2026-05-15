@@ -26,6 +26,7 @@ class Deal {
   final String? dailyEnd;
   final List<int> activeDays;
   final String? featuredSection;
+  final List<String> tags;
   final String? vendorAddress;
 
   Deal({
@@ -54,6 +55,7 @@ class Deal {
     this.dailyEnd,
     this.activeDays = const [],
     this.featuredSection,
+    this.tags = const [],
     this.vendorAddress,
   });
 
@@ -83,6 +85,7 @@ class Deal {
         dailyEnd: json['dailyEnd'] as String?,
         activeDays: (json['activeDays'] as List?)?.map((e) => e as int).toList() ?? [],
         featuredSection: json['featuredSection'] as String?,
+        tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? [],
         vendorAddress: json['vendorAddress'] as String?,
       );
 

@@ -4,6 +4,20 @@ import '../core/mock_data.dart';
 import '../models/deal.dart';
 import 'api_provider.dart';
 
+class DealCollection {
+  final String tag;
+  final String title;
+  final List<Deal> deals;
+
+  DealCollection({required this.tag, required this.title, required this.deals});
+
+  factory DealCollection.fromJson(Map<String, dynamic> json) => DealCollection(
+    tag: json['tag'] as String,
+    title: json['title'] as String,
+    deals: (json['deals'] as List).map((d) => Deal.fromJson(d)).toList(),
+  );
+}
+
 class TrendingVendor {
   final String id;
   final String businessName;
@@ -23,6 +37,7 @@ class DealsState {
   final List<Deal> featured;
   final List<Deal> happyHour;
   final List<Deal> upcoming;
+  final List<DealCollection> collections;
   final List<TrendingVendor> trendingVendors;
   final bool isLoading;
   final String? error;
@@ -35,6 +50,7 @@ class DealsState {
     this.featured = const [],
     this.happyHour = const [],
     this.upcoming = const [],
+    this.collections = const [],
     this.trendingVendors = const [],
     this.isLoading = false,
     this.error,
@@ -48,6 +64,7 @@ class DealsState {
     List<Deal>? featured,
     List<Deal>? happyHour,
     List<Deal>? upcoming,
+    List<DealCollection>? collections,
     List<TrendingVendor>? trendingVendors,
     bool? isLoading,
     String? error,
@@ -60,6 +77,7 @@ class DealsState {
         featured: featured ?? this.featured,
         happyHour: happyHour ?? this.happyHour,
         upcoming: upcoming ?? this.upcoming,
+        collections: collections ?? this.collections,
         trendingVendors: trendingVendors ?? this.trendingVendors,
         isLoading: isLoading ?? this.isLoading,
         error: error,
@@ -154,6 +172,20 @@ class DealsNotifier extends Notifier<DealsState> {
       state = state.copyWith(happyHour: deals);
     } catch (e) {
       debugPrint('loadHappyHour error: $e');
+    }
+  }
+
+  Future<void> loadCollections() async {
+    if (useMockData) return;
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/deals/collections');
+      final cols = (response.data['data'] as List)
+          .map((c) => DealCollection.fromJson(c))
+          .toList();
+      state = state.copyWith(collections: cols);
+    } catch (e) {
+      debugPrint('loadCollections error: $e');
     }
   }
 

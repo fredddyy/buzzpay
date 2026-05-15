@@ -21,6 +21,15 @@ export const dealController = {
     }
   },
 
+  async collections(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const collections = await dealService.collections();
+      res.json({ success: true, data: collections });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async upcoming(_req: Request, res: Response, next: NextFunction) {
     try {
       const deals = await dealService.upcoming();

@@ -111,6 +111,7 @@ export const adminController = {
         activeDays: (d as any).activeDays ?? [],
         isRecurring: (d as any).isRecurring ?? false,
         featuredSection: (d as any).featuredSection ?? null,
+        tags: (d as any).tags ?? [],
       }));
 
       res.json({ success: true, data: mapped, meta: paginationMeta(total, page, limit) });
@@ -146,6 +147,7 @@ export const adminController = {
           activeDays: activeDays || [],
           isRecurring: isRecurring ?? false,
           featuredSection: featuredSection || null,
+          tags: tags || [],
         },
         include: { vendor: { select: { businessName: true } } },
       });
@@ -165,7 +167,7 @@ export const adminController = {
   async updateDeal(req: Request, res: Response, next: NextFunction) {
     try {
       const id = req.params.id as string;
-      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess, dailyStart, dailyEnd, previewStart, activeDays, featuredSection, isRecurring } = req.body;
+      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess, dailyStart, dailyEnd, previewStart, activeDays, featuredSection, isRecurring, tags } = req.body;
 
       const existing = await prisma.deal.findUnique({ where: { id } });
       if (!existing) throw new AppError(404, 'Deal not found');
@@ -192,6 +194,7 @@ export const adminController = {
           ...(activeDays !== undefined && { activeDays }),
           ...(featuredSection !== undefined && { featuredSection: featuredSection || null }),
           ...(isRecurring !== undefined && { isRecurring }),
+          ...(tags !== undefined && { tags }),
         },
       });
 
