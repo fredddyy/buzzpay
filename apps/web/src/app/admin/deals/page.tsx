@@ -110,6 +110,8 @@ export default function DealsPage() {
     setModalDeal(null);
   }
 
+  const [cloneDeal, setCloneDeal] = useState<Deal | null>(null);
+
   function handleSearch(v: string) { setSearch(v); setPage(1); }
   function handleCategory(v: string) { setCategory(v); setPage(1); }
   function handleStatus(v: string) { setStatus(v); setPage(1); }
@@ -217,9 +219,19 @@ export default function DealsPage() {
                   }} />
                 </div>
               </div>
-              <button onClick={(e) => toggleFeatured(e, d.id)} className="text-[18px]">
-                {d.isFeatured ? "⭐" : "☆"}
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={(e) => toggleFeatured(e, d.id)} className="text-[18px]">
+                  {d.isFeatured ? "⭐" : "☆"}
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setCloneDeal(d); }}
+                  title="Clone to vendors"
+                  className="p-1 rounded opacity-40 hover:opacity-100 transition-opacity"
+                  style={{ color: "var(--color-text-muted)" }}>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.5a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m0 0a2.625 2.625 0 115.25 0H12m-3.75 0h3.75" />
+                  </svg>
+                </button>
+              </div>
               <div className="flex justify-end">
                 <button onClick={(e) => toggleActive(e, d.id)}
                   className="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors"
@@ -237,6 +249,15 @@ export default function DealsPage() {
       </div>
 
       <Pagination page={page} totalPages={meta.totalPages} total={meta.total} onPageChange={setPage} />
+
+      {cloneDeal && (
+        <CloneModal
+          deal={cloneDeal}
+          vendors={vendors}
+          onClose={() => setCloneDeal(null)}
+          onCloned={() => { setCloneDeal(null); load(); }}
+        />
+      )}
 
       {modalDeal !== null && (
         <DealModal
@@ -637,6 +658,180 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────── */
+/* Clone Modal — Clone deal to vendors      */
+/* ──────────────────────────────────────── */
+
+function CloneModal({ deal, vendors, onClose, onCloned }: {
+  deal: Deal;
+  vendors: Vendor[];
+  onClose: () => void;
+  onCloned: () => void;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [cloning, setCloning] = useState(false);
+  const [done, setDone] = useState(0);
+
+  // Exclude the deal's own vendor
+  const available = vendors.filter(v => v.id !== deal.vendorId);
+
+  function toggleVendor(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    if (selected.size === available.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(available.map(v => v.id)));
+    }
+  }
+
+  async function clone() {
+    if (selected.size === 0) return;
+    setCloning(true);
+    setDone(0);
+
+    for (const vendorId of selected) {
+      try {
+        await api.post("/admin/deals", {
+          vendorId,
+          title: deal.title,
+          description: deal.description,
+          category: deal.category,
+          imageUrl: deal.imageUrl,
+          originalPrice: deal.originalPrice,
+          studentPrice: deal.studentPrice,
+          totalQuantity: deal.totalQuantity,
+          maxPerUser: deal.maxPerUser,
+          startsAt: deal.startsAt,
+          expiresAt: deal.expiresAt,
+          isFeatured: deal.isFeatured,
+          featuredSection: deal.featuredSection,
+          guestAccess: deal.guestAccess,
+          dailyStart: deal.dailyStart,
+          dailyEnd: deal.dailyEnd,
+          activeDays: deal.activeDays,
+        });
+        setDone(prev => prev + 1);
+      } catch {}
+    }
+
+    setCloning(false);
+    onCloned();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-2xl p-6"
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>Clone Deal</h2>
+            <p className="text-[12px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+              Clone &ldquo;{deal.title}&rdquo; to other vendors
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg" style={{ color: "var(--color-text-muted)" }}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Source deal info */}
+        <div className="rounded-xl p-3 mb-4 flex items-center gap-3"
+          style={{ background: "var(--color-surface-light)", border: "1px solid var(--color-border)" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+            style={{ background: "var(--color-primary-surface)" }}>
+            📋
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold truncate" style={{ color: "var(--color-text)" }}>{deal.title}</p>
+            <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+              {deal.vendorName} &middot; ₦{(deal.studentPrice / 100).toLocaleString()}
+              {deal.featuredSection && ` · ${deal.featuredSection}`}
+              {deal.dailyStart && ` · ${deal.dailyStart}–${deal.dailyEnd}`}
+            </p>
+          </div>
+        </div>
+
+        {/* Vendor selection */}
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-muted)", letterSpacing: "0.05em" }}>
+            Select Vendors ({selected.size}/{available.length})
+          </p>
+          <button onClick={selectAll} className="text-[11px] font-semibold" style={{ color: "var(--color-primary)" }}>
+            {selected.size === available.length ? "Deselect All" : "Select All"}
+          </button>
+        </div>
+
+        <div className="space-y-1 mb-4 max-h-[240px] overflow-y-auto">
+          {available.map(v => (
+            <button key={v.id} onClick={() => toggleVendor(v.id)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left"
+              style={{
+                background: selected.has(v.id) ? "var(--color-primary-surface)" : "var(--color-surface-light)",
+                border: `1px solid ${selected.has(v.id) ? "var(--color-primary-border)" : "var(--color-border)"}`,
+              }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                style={{
+                  background: selected.has(v.id) ? "var(--color-primary)" : "var(--color-surface-hover)",
+                  color: selected.has(v.id) ? "white" : "var(--color-text-muted)",
+                }}>
+                {selected.has(v.id) ? "✓" : v.businessName.charAt(0)}
+              </div>
+              <span className="text-[13px] font-medium truncate"
+                style={{ color: selected.has(v.id) ? "var(--color-primary)" : "var(--color-text)" }}>
+                {v.businessName}
+              </span>
+            </button>
+          ))}
+          {available.length === 0 && (
+            <p className="text-center text-[13px] py-8" style={{ color: "var(--color-text-muted)" }}>
+              No other vendors to clone to
+            </p>
+          )}
+        </div>
+
+        {/* Progress */}
+        {cloning && (
+          <div className="mb-4">
+            <div className="flex justify-between text-[11px] mb-1" style={{ color: "var(--color-text-muted)" }}>
+              <span>Cloning...</span>
+              <span>{done}/{selected.size}</span>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-surface-hover)" }}>
+              <div className="h-full rounded-full transition-all" style={{
+                width: `${(done / selected.size) * 100}%`,
+                background: "var(--color-primary)",
+              }} />
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-[13px] font-medium"
+            style={{ background: "var(--color-surface-light)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
+            Cancel
+          </button>
+          <button onClick={clone} disabled={cloning || selected.size === 0}
+            className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold disabled:opacity-50"
+            style={{ background: "var(--color-primary)", color: "white" }}>
+            {cloning ? `Cloning ${done}/${selected.size}...` : `Clone to ${selected.size} Vendor${selected.size !== 1 ? "s" : ""}`}
+          </button>
+        </div>
       </div>
     </div>
   );
