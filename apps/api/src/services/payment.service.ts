@@ -107,6 +107,26 @@ export const paymentService = {
       if (result.status === 'success') {
         await this.handleWebhook('charge.success', result);
       }
+    } else if (payment.status === 'SUCCESS') {
+      // Payment already marked success but voucher might be missing
+      const existingVoucher = await voucherRepository.findByPaymentId(payment.id);
+      if (!existingVoucher) {
+        // Create the missing voucher
+        const user = await userRepository.findById(payment.userId);
+        if (user?.student) {
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + VOUCHER_EXPIRY_HOURS);
+          await voucherRepository.create({
+            studentId: user.student.id,
+            dealId: payment.dealId,
+            paymentId: payment.id,
+            code: nanoid(VOUCHER_CODE_LENGTH).toUpperCase(),
+            qrData: uuidv4(),
+            expiresAt,
+          });
+          await dealRepository.decrementQuantity(payment.dealId);
+        }
+      }
     }
 
     // Reload payment
