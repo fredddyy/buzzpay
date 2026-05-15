@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -19,11 +20,17 @@ class HappyHourCard extends StatefulWidget {
 class _HappyHourCardState extends State<HappyHourCard> {
   late Timer _timer;
   late Duration _remaining;
+  Uint8List? _cachedLogoBytes;
 
   @override
   void initState() {
     super.initState();
     _remaining = _calcRemaining();
+    // Pre-decode base64 logo to avoid re-decoding every tick
+    final logo = widget.deal.vendorLogo;
+    if (logo != null && logo.startsWith('data:image')) {
+      try { _cachedLogoBytes = base64Decode(logo.split(',').last); } catch (_) {}
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         setState(() {
@@ -64,17 +71,15 @@ class _HappyHourCardState extends State<HappyHourCard> {
   }
 
   Widget _buildVendorImage(String url, String name) {
-    if (url.startsWith('data:image')) {
-      try {
-        final b64 = url.split(',').last;
-        return Image.memory(base64Decode(b64), fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Center(child: Text(name.substring(0, 1),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary))));
-      } catch (_) {}
+    final fallback = Center(child: Text(name.substring(0, 1),
+      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)));
+    if (_cachedLogoBytes != null) {
+      return Image.memory(_cachedLogoBytes!, fit: BoxFit.cover, gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => fallback);
     }
+    if (url.startsWith('data:image')) return fallback;
     return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
-      errorWidget: (_, __, ___) => Center(child: Text(name.substring(0, 1),
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary))));
+      errorWidget: (_, __, ___) => fallback);
   }
 
   double get _progress {

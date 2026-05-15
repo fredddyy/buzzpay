@@ -904,20 +904,11 @@ class _UpcomingCardState extends State<_UpcomingCard> {
                     ));
                   }
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 30, height: 30,
-                  decoration: BoxDecoration(
-                    color: _reminded ? AppColors.primary : Colors.white.withValues(alpha: 0.9),
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
-                  ),
-                  child: _reminded
-                    ? const Center(child: Icon(Icons.check, size: 16, color: Colors.white))
-                    : Padding(
-                        padding: const EdgeInsets.all(5),
-                        child: Image.asset('assets/icons/bell_3d.png', fit: BoxFit.contain),
-                      ),
+                child: Icon(
+                  _reminded ? Icons.notifications_active : Icons.notifications_none_outlined,
+                  size: 22,
+                  color: _reminded ? const Color(0xFFFFC107) : Colors.white.withValues(alpha: 0.85),
+                  shadows: [Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 4)],
                 ),
               ),
             ),
