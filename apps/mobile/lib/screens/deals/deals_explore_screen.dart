@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,7 +6,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/colors.dart';
 import '../../models/deal.dart';
 import '../../providers/deals_provider.dart';
-import '../../widgets/price_display.dart';
 
 enum SortMode { newest, priceLow, priceHigh, discount, endingSoon }
 
@@ -20,6 +20,7 @@ class DealsExploreScreen extends ConsumerStatefulWidget {
 class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
   String? _category;
   SortMode _sort = SortMode.newest;
+  bool _showSort = false;
   final _searchController = TextEditingController();
   String _search = '';
 
@@ -35,8 +36,8 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
 
   static const _sortLabels = {
     SortMode.newest: 'Newest',
-    SortMode.priceLow: 'Price ↑',
-    SortMode.priceHigh: 'Price ↓',
+    SortMode.priceLow: 'Price: Low',
+    SortMode.priceHigh: 'Price: High',
     SortMode.discount: 'Best Deal',
     SortMode.endingSoon: 'Ending Soon',
   };
@@ -58,13 +59,7 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
 
   List<Deal> _filtered(List<Deal> deals) {
     var result = deals.toList();
-
-    // Category
-    if (_category != null) {
-      result = result.where((d) => d.category == _category).toList();
-    }
-
-    // Search
+    if (_category != null) result = result.where((d) => d.category == _category).toList();
     if (_search.isNotEmpty) {
       final q = _search.toLowerCase();
       result = result.where((d) =>
@@ -72,26 +67,13 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
           d.vendorName.toLowerCase().contains(q) ||
           d.tags.any((t) => t.contains(q))).toList();
     }
-
-    // Sort
     switch (_sort) {
-      case SortMode.newest:
-        result.sort((a, b) => b.startsAt.compareTo(a.startsAt));
-        break;
-      case SortMode.priceLow:
-        result.sort((a, b) => a.studentPrice.compareTo(b.studentPrice));
-        break;
-      case SortMode.priceHigh:
-        result.sort((a, b) => b.studentPrice.compareTo(a.studentPrice));
-        break;
-      case SortMode.discount:
-        result.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
-        break;
-      case SortMode.endingSoon:
-        result.sort((a, b) => a.minutesRemaining.compareTo(b.minutesRemaining));
-        break;
+      case SortMode.newest: result.sort((a, b) => b.startsAt.compareTo(a.startsAt));
+      case SortMode.priceLow: result.sort((a, b) => a.studentPrice.compareTo(b.studentPrice));
+      case SortMode.priceHigh: result.sort((a, b) => b.studentPrice.compareTo(a.studentPrice));
+      case SortMode.discount: result.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
+      case SortMode.endingSoon: result.sort((a, b) => a.minutesRemaining.compareTo(b.minutesRemaining));
     }
-
     return result;
   }
 
@@ -99,10 +81,6 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
   Widget build(BuildContext context) {
     final deals = ref.watch(dealsProvider);
     final filtered = _filtered(deals.deals);
-
-    // Sub-groups
-    final under1500 = filtered.where((d) => d.studentPrice <= 150000).toList();
-    final featured = filtered.where((d) => d.isFeatured).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -119,28 +97,48 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
                     child: const Icon(Icons.arrow_back, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Explore Deals', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  const Text('Explore', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                   const Spacer(),
-                  Text('${filtered.length} deals', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                  Text('${filtered.length}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                  Text(' deals', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
                 ],
               ),
             ),
 
-            // ── Search ──
+            // ── Search + Filter button ──
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (v) => setState(() => _search = v),
-                decoration: InputDecoration(
-                  hintText: 'Search deals, vendors, tags...',
-                  hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
-                  prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textTertiary),
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _search = v),
+                      decoration: InputDecoration(
+                        hintText: 'Search...',
+                        hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                        prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textTertiary),
+                        filled: true,
+                        fillColor: AppColors.card,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() => _showSort = !_showSort),
+                    child: Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: _showSort ? AppColors.primary.withValues(alpha: 0.1) : AppColors.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: _showSort ? AppColors.primary : Colors.transparent),
+                      ),
+                      child: Icon(Icons.tune, size: 20, color: _showSort ? AppColors.primary : AppColors.textTertiary),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -148,7 +146,7 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
               child: SizedBox(
-                height: 36,
+                height: 34,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -177,41 +175,33 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
               ),
             ),
 
-            // ── Sort pills ──
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 10, 0, 8),
-              child: SizedBox(
-                height: 30,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: SortMode.values.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
-                  itemBuilder: (_, i) {
-                    final mode = SortMode.values[i];
+            // ── Sort dropdown (hidden by default) ──
+            if (_showSort)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: Wrap(
+                  spacing: 6, runSpacing: 6,
+                  children: SortMode.values.map((mode) {
                     final active = mode == _sort;
                     return GestureDetector(
-                      onTap: () => setState(() => _sort = mode),
+                      onTap: () => setState(() { _sort = mode; _showSort = false; }),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: active ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: active ? AppColors.primary : AppColors.border,
-                          ),
+                          color: active ? AppColors.primary : AppColors.card,
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        alignment: Alignment.center,
                         child: Text(_sortLabels[mode]!, style: TextStyle(
                           fontSize: 11, fontWeight: FontWeight.w600,
-                          color: active ? AppColors.primary : AppColors.textTertiary,
+                          color: active ? Colors.white : AppColors.textTertiary,
                         )),
                       ),
                     );
-                  },
+                  }).toList(),
                 ),
               ),
-            ),
+
+            const SizedBox(height: 10),
 
             // ── Grid ──
             Expanded(
@@ -223,9 +213,9 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
                           padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 0.72,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.68,
                           ),
                           itemCount: filtered.length,
                           itemBuilder: (context, index) => _dealTile(filtered[index]),
@@ -245,82 +235,98 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
+            // Image with single badge
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                   child: deal.imageUrl != null
                       ? CachedNetworkImage(
-                          imageUrl: deal.imageUrl!, height: 100, width: double.infinity, fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(height: 100, color: AppColors.background),
-                          errorWidget: (_, __, ___) => Container(height: 100, color: AppColors.background),
+                          imageUrl: deal.imageUrl!, height: 110, width: double.infinity, fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(height: 110, color: AppColors.background),
+                          errorWidget: (_, __, ___) => Container(height: 110, color: AppColors.background),
                         )
-                      : Container(height: 100, color: AppColors.background),
+                      : Container(height: 110, color: AppColors.background,
+                          child: const Center(child: Icon(Icons.restaurant, color: AppColors.textTertiary))),
                 ),
-                // Discount badge
+                // Single discount badge
                 if (deal.discountPercent > 0)
                   Positioned(
                     top: 8, left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
                       child: Text('-${deal.discountPercent}%', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
                     ),
                   ),
-                // Closed overlay
+                // Frosted glass closed overlay
                 if (isClosed)
                   Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                        child: Container(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          alignment: Alignment.center,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text('Opens at ${deal.vendorOpensAt}',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.text)),
+                          ),
+                        ),
                       ),
-                      alignment: Alignment.center,
-                      child: Text('Opens at ${deal.vendorOpensAt}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
-                    ),
-                  ),
-                // Stock badge
-                if (deal.remainingQty <= 10)
-                  Positioned(
-                    top: 8, right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(8)),
-                      child: Text('${deal.remainingQty} left', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white)),
                     ),
                   ),
               ],
             ),
 
-            // Info
+            // Info — clean hierarchy
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Vendor name — small, muted
                     Text(deal.vendorName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
-                    const SizedBox(height: 2),
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
+                    const SizedBox(height: 3),
+                    // Deal name — bold, clear
                     Text(deal.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, height: 1.2)),
                     const Spacer(),
+                    // Price — hero element
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(deal.formattedStudentPrice,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary)),
                         const SizedBox(width: 4),
-                        Text(deal.formattedOriginalPrice,
-                          style: TextStyle(fontSize: 10, color: AppColors.textTertiary, decoration: TextDecoration.lineThrough)),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 1),
+                          child: Text(deal.formattedOriginalPrice,
+                            style: TextStyle(fontSize: 10, color: AppColors.textTertiary, decoration: TextDecoration.lineThrough)),
+                        ),
                       ],
                     ),
+                    // Subtle stock indicator
+                    if (deal.remainingQty <= 10)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text('Only ${deal.remainingQty} left',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.danger)),
+                      ),
                   ],
                 ),
               ),
@@ -338,15 +344,22 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search_off, size: 64, color: AppColors.textTertiary.withValues(alpha: 0.4)),
+            Icon(Icons.search_off_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.3)),
             const SizedBox(height: 16),
-            const Text('No deals match', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text('No deals match', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            Text('Try a different filter or search term', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            Text('Try a different filter or search', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
             const SizedBox(height: 20),
-            TextButton(
-              onPressed: () => setState(() { _category = null; _search = ''; _searchController.clear(); _sort = SortMode.newest; }),
-              child: Text('Clear Filters', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+            GestureDetector(
+              onTap: () => setState(() { _category = null; _search = ''; _searchController.clear(); _sort = SortMode.newest; }),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('Show me what\'s trending', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
+              ),
             ),
           ],
         ),
