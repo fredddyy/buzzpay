@@ -132,6 +132,8 @@ model Deal {
   isRecurring   Boolean      @default(false) // repeats daily within startsAt–expiresAt
   featuredSection String?    // e.g. "Hot in Akoka", "Breakfast Rush"
   tags          String[]     @default([]) // e.g. ["shawarma", "wraps", "late-night"]
+  campaignId    String?
+  campaign      Campaign?    @relation(fields: [campaignId], references: [id])
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -144,6 +146,22 @@ model Deal {
   @@index([isFeatured, isActive])
   @@index([isActive, startsAt, expiresAt, remainingQty]) // peak-load: active deals with stock
   @@index([vendorId, isActive, expiresAt])               // vendor deal listings
+}
+
+model Campaign {
+  id              String   @id @default(cuid())
+  name            String   // e.g. "Breakfast Rush Monday"
+  featuredSection String?  // section name on student feed
+  dailyStart      String?  // shared schedule
+  dailyEnd        String?
+  previewStart    String?
+  activeDays      Int[]    @default([])
+  status          String   @default("DRAFT") // DRAFT, PUBLISHED
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  deals Deal[]
 }
 
 model Voucher {

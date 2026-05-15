@@ -16,6 +16,13 @@ router.post('/deals', adminController.createDeal);
 router.put('/deals/:id', adminController.updateDeal);
 router.put('/deals/:id/toggle', adminController.toggleDeal);
 router.put('/deals/:id/feature', adminController.featureDeal);
+router.delete('/deals/:id', adminController.deleteDeal);
+
+// Campaigns
+router.get('/campaigns', adminController.listCampaigns);
+router.post('/campaigns', adminController.createCampaign);
+router.post('/campaigns/:campaignId/deals', adminController.addDealToCampaign);
+router.post('/campaigns/:id/publish', adminController.publishCampaign);
 
 // Vendors
 router.get('/vendors', adminController.listVendors);

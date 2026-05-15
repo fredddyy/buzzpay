@@ -613,6 +613,94 @@ export const adminController = {
     } catch (err) { next(err); }
   },
 
+  async deleteDeal(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+      const deal = await prisma.deal.findUnique({ where: { id } });
+      if (!deal) throw new AppError(404, 'Deal not found');
+
+      await prisma.deal.delete({ where: { id } });
+      res.json({ success: true, data: { id, deleted: true } });
+      realtimeService.dealChanged(id, 'deleted');
+    } catch (err) { next(err); }
+  },
+
+  // ─── Campaigns ────────────────────────────────────────────
+  async listCampaigns(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const campaigns = await prisma.campaign.findMany({
+        include: { _count: { select: { deals: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json({ success: true, data: campaigns.map(c => ({
+        ...c, dealCount: c._count.deals,
+      }))});
+    } catch (err) { next(err); }
+  },
+
+  async createCampaign(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { name, featuredSection, dailyStart, dailyEnd, previewStart, activeDays } = req.body;
+      if (!name) throw new AppError(400, 'Campaign name required');
+
+      const campaign = await prisma.campaign.create({
+        data: { name, featuredSection, dailyStart, dailyEnd, previewStart, activeDays: activeDays || [] },
+      });
+      res.status(201).json({ success: true, data: campaign });
+    } catch (err) { next(err); }
+  },
+
+  async addDealToCampaign(req: Request, res: Response, next: NextFunction) {
+    try {
+      const campaignId = req.params.campaignId as string;
+      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, tags } = req.body;
+
+      const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+      if (!campaign) throw new AppError(404, 'Campaign not found');
+
+      const deal = await prisma.deal.create({
+        data: {
+          vendorId, title, description: description || title, category,
+          imageUrl: imageUrl || null, originalPrice, studentPrice,
+          totalQuantity, remainingQty: totalQuantity, maxPerUser: maxPerUser ?? 1,
+          startsAt: new Date(startsAt), expiresAt: new Date(expiresAt),
+          isActive: false, // stays inactive until campaign is published
+          isFeatured: !!campaign.featuredSection,
+          featuredSection: campaign.featuredSection,
+          dailyStart: campaign.dailyStart, dailyEnd: campaign.dailyEnd,
+          previewStart: campaign.previewStart, activeDays: campaign.activeDays,
+          isRecurring: !!campaign.dailyStart,
+          campaignId, tags: tags || [],
+        },
+      });
+      res.status(201).json({ success: true, data: { id: deal.id, title: deal.title } });
+    } catch (err) { next(err); }
+  },
+
+  async publishCampaign(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+      const campaign = await prisma.campaign.findUnique({ where: { id }, include: { deals: true } });
+      if (!campaign) throw new AppError(404, 'Campaign not found');
+
+      // Activate all deals in this campaign at once
+      await prisma.deal.updateMany({
+        where: { campaignId: id },
+        data: { isActive: true },
+      });
+
+      await prisma.campaign.update({
+        where: { id },
+        data: { status: 'PUBLISHED', publishedAt: new Date() },
+      });
+
+      // Broadcast so student apps refresh
+      realtimeService.dealChanged(id, 'created');
+
+      res.json({ success: true, data: { id, status: 'PUBLISHED', dealsActivated: campaign.deals.length } });
+    } catch (err) { next(err); }
+  },
+
   // ─── QR Code Management ───────────────────────────────────
 
   async listVendorQrCodes(req: Request, res: Response, next: NextFunction) {
