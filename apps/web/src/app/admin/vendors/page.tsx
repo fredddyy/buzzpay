@@ -225,8 +225,9 @@ export default function VendorsPage() {
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <span className="flex items-center" onClick={e => e.stopPropagation()}>
                   <input type="checkbox" checked={checked.has(v.id)}
-                    onChange={() => toggleCheck({stopPropagation: () => {}} as any, v.id)}
-                    onClick={e => toggleCheck(e as any, v.id)}
+                    onChange={() => {
+                      setChecked(prev => { const n = new Set(prev); n.has(v.id) ? n.delete(v.id) : n.add(v.id); return n; });
+                    }}
                     className="accent-[#6C4FFF] w-3.5 h-3.5 cursor-pointer" />
                 </span>
                 <div className="flex items-center gap-3 min-w-0">
