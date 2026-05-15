@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/colors.dart';
 import '../../core/api_client.dart';
+import '../../core/supabase_config.dart';
 
 class VendorDealsScreen extends StatefulWidget {
   const VendorDealsScreen({super.key});
@@ -13,11 +15,26 @@ class _VendorDealsScreenState extends State<VendorDealsScreen> {
   final _api = VendorApiClient();
   List<Map<String, dynamic>> _deals = [];
   bool _loading = true;
+  RealtimeChannel? _channel;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    if (!SupabaseConfig.isConfigured) return;
+    _channel = Supabase.instance.client.channel('deals');
+    _channel!.onBroadcast(event: 'deal_change', callback: (_) => _load());
+    _channel!.subscribe();
+  }
+
+  @override
+  void dispose() {
+    _channel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _load() async {
