@@ -59,6 +59,28 @@ export const voucherService = {
     };
   },
 
+  async redeemByCode(code: string, vendorUserId: string) {
+    const voucher = await voucherRepository.findByCode(code);
+    if (!voucher) throw new AppError(404, 'Invalid voucher code');
+    if (voucher.status === 'REDEEMED') throw new AppError(400, 'Voucher already redeemed');
+    if (voucher.status === 'EXPIRED' || voucher.expiresAt < new Date()) {
+      throw new AppError(400, 'Voucher has expired');
+    }
+    if (voucher.deal.vendor.userId !== vendorUserId) {
+      throw new AppError(403, 'This voucher is not for your business');
+    }
+
+    await voucherRepository.markRedeemed(voucher.id, true);
+    realtimeService.voucherRedeemed(voucher.id, voucher.dealId, voucher.deal.vendor.id);
+    realtimeService.voucherStatusChanged(voucher.student.user.id, voucher.id, 'REDEEMED');
+    return {
+      voucherId: voucher.id,
+      dealTitle: voucher.deal.title,
+      studentName: voucher.student.user.fullName,
+      amount: voucher.deal.studentPrice,
+    };
+  },
+
   async redeemByQr(qrData: string, vendorUserId: string) {
     const voucher = await voucherRepository.findByQrData(qrData);
     if (!voucher) throw new AppError(404, 'Invalid QR code');

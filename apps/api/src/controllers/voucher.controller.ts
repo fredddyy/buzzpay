@@ -48,8 +48,17 @@ export const voucherController = {
   async redeemByStaticQr(req: Request, res: Response) {
     try {
       const { qrData } = req.body;
-      if (!qrData) { res.status(400).json({ success: false, message: 'qrData required' }); return; }
-      const result = await voucherService.redeemByQr(qrData, req.user!.userId);
+      if (!qrData) { res.status(400).json({ success: false, message: 'qrData or code required' }); return; }
+
+      // Try as QR data (UUID) first, then as manual code
+      try {
+        const result = await voucherService.redeemByQr(qrData, req.user!.userId);
+        res.json({ success: true, data: result });
+        return;
+      } catch (_) {}
+
+      // Try as manual code (e.g. Y9W5S6BG)
+      const result = await voucherService.redeemByCode(qrData, req.user!.userId);
       res.json({ success: true, data: result });
     } catch (err: any) {
       res.status(err.statusCode || 500).json({ success: false, message: err.message });
