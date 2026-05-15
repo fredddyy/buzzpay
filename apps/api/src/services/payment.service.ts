@@ -34,6 +34,7 @@ export const paymentService = {
       email: user.email,
       amount: deal.studentPrice,
       reference,
+      callbackUrl: `https://buzzpay.ng/payment/success?reference=${reference}`,
       metadata: { dealId, userId, dealTitle: deal.title },
     });
 

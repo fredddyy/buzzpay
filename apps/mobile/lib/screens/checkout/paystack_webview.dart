@@ -53,7 +53,8 @@ class _PaystackWebViewState extends State<PaystackWebView> {
             if (_done) return NavigationDecision.prevent;
 
             // Detect callback URL patterns
-            if (url.contains('trxref=') ||
+            if (url.contains('buzzpay.ng/payment/success') ||
+                url.contains('trxref=') ||
                 url.contains('reference=') ||
                 url.contains('/callback')) {
               _done = true;
