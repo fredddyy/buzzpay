@@ -10,7 +10,17 @@ export const paymentRepository = {
     paystackReference: string;
     paystackAccessCode: string;
   }) {
-    return prisma.payment.create({ data });
+    return prisma.payment.create({
+      data: {
+        user: { connect: { id: data.userId } },
+        deal: { connect: { id: data.dealId } },
+        amount: data.amount,
+        commission: data.commission,
+        vendorAmount: data.vendorAmount,
+        paystackReference: data.paystackReference,
+        paystackAccessCode: data.paystackAccessCode,
+      },
+    });
   },
 
   async findByReference(reference: string) {

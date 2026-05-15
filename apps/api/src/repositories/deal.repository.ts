@@ -71,7 +71,7 @@ export const dealRepository = {
   async findById(id: string) {
     return prisma.deal.findUnique({
       where: { id },
-      include: { vendor: { select: { businessName: true, logoUrl: true, businessAddress: true, opensAt: true, closesAt: true } } },
+      include: { vendor: { select: { businessName: true, logoUrl: true, businessAddress: true, opensAt: true, closesAt: true, commissionRate: true, userId: true } } },
     });
   },
 
