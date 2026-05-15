@@ -26,15 +26,22 @@ class VendorApiClient {
         handler.next(options);
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
+        if (error.response?.statusCode == 401 && !error.requestOptions.extra.containsKey('retried')) {
           final refreshed = await _tryRefresh();
           if (refreshed) {
             final prefs = await SharedPreferences.getInstance();
             final token = prefs.getString(_keyAccess);
-            error.requestOptions.headers['Authorization'] = 'Bearer $token';
-            final response = await _dio.fetch(error.requestOptions);
-            handler.resolve(response);
-            return;
+            final opts = error.requestOptions;
+            opts.headers['Authorization'] = 'Bearer $token';
+            opts.extra['retried'] = true;
+            try {
+              final response = await Dio(BaseOptions(baseUrl: _baseUrl)).fetch(opts);
+              handler.resolve(response);
+              return;
+            } catch (retryError) {
+              handler.next(retryError is DioException ? retryError : error);
+              return;
+            }
           }
         }
         handler.next(error);
