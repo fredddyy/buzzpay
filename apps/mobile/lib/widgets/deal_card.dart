@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -19,6 +20,19 @@ class DealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+  Widget _buildVendorAvatar(String url, String name) {
+    if (url.startsWith('data:image')) {
+      try {
+        return Image.memory(base64Decode(url.split(',').last), fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Center(child: Text(name.substring(0, 1),
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.primary))));
+      } catch (_) {}
+    }
+    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
+      errorWidget: (_, __, ___) => Center(child: Text(name.substring(0, 1),
+        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.primary))));
+  }
+
     final isClosed = !deal.vendorIsOpen;
 
     return GestureDetector(
@@ -165,15 +179,15 @@ class DealCard extends StatelessWidget {
                             shape: BoxShape.circle,
                             color: AppColors.primary.withValues(alpha: 0.1),
                           ),
-                          child: Center(
-                            child: Text(
-                              deal.vendorName.substring(0, 1),
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                              ),
-                            ),
+                          child: ClipOval(
+                            child: deal.vendorLogo != null
+                              ? _buildVendorAvatar(deal.vendorLogo!, deal.vendorName)
+                              : Center(
+                                  child: Text(
+                                    deal.vendorName.substring(0, 1),
+                                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.primary),
+                                  ),
+                                ),
                           ),
                         ),
                         const SizedBox(width: 4),

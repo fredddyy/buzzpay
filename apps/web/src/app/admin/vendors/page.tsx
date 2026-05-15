@@ -230,9 +230,11 @@ export default function VendorsPage() {
                     className="accent-[#6C4FFF] w-3.5 h-3.5 cursor-pointer" />
                 </span>
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 overflow-hidden"
                     style={{ background: "var(--color-info-surface)", color: "var(--color-info)" }}>
-                    {v.businessName.charAt(0)}
+                    {(v as any).logoUrl
+                      ? <img src={(v as any).logoUrl} alt="" className="w-full h-full object-cover" />
+                      : v.businessName.charAt(0)}
                   </div>
                   <div className="min-w-0">
                     <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{v.businessName}</p>
