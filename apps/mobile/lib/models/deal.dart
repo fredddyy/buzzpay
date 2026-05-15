@@ -27,6 +27,12 @@ class Deal {
   final List<int> activeDays;
   final String? featuredSection;
   final List<String> tags;
+  final String? previewStart;
+  final bool isRecurring;
+  final String dealStatus; // available, preview, active, ended, upcoming
+  final bool canRedeem;
+  final int minutesRemaining;
+  final int startsInMinutes;
   final String? vendorAddress;
 
   Deal({
@@ -56,6 +62,12 @@ class Deal {
     this.activeDays = const [],
     this.featuredSection,
     this.tags = const [],
+    this.previewStart,
+    this.isRecurring = false,
+    this.dealStatus = 'available',
+    this.canRedeem = true,
+    this.minutesRemaining = 0,
+    this.startsInMinutes = 0,
     this.vendorAddress,
   });
 
@@ -86,6 +98,12 @@ class Deal {
         activeDays: (json['activeDays'] as List?)?.map((e) => e as int).toList() ?? [],
         featuredSection: json['featuredSection'] as String?,
         tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? [],
+        previewStart: json['previewStart'] as String?,
+        isRecurring: json['isRecurring'] as bool? ?? false,
+        dealStatus: json['dealStatus'] as String? ?? 'available',
+        canRedeem: json['canRedeem'] as bool? ?? true,
+        minutesRemaining: json['minutesRemaining'] as int? ?? 0,
+        startsInMinutes: json['startsInMinutes'] as int? ?? 0,
         vendorAddress: json['vendorAddress'] as String?,
       );
 

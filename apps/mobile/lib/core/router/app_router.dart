@@ -11,6 +11,7 @@ import '../../screens/auth/signup_screen.dart';
 import '../../screens/auth/verify_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/deals/deal_detail_screen.dart';
+import '../../screens/deals/deals_explore_screen.dart';
 import '../../screens/checkout/checkout_screen.dart';
 import '../../screens/vouchers/voucher_detail_screen.dart';
 import '../../screens/vouchers/vouchers_screen.dart';
@@ -104,6 +105,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // Detail routes (outside shell)
+      GoRoute(
+        path: '/explore',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return DealsExploreScreen(initialCategory: extra['category'] as String?);
+        },
+      ),
       GoRoute(
         path: '/deal/:id',
         builder: (context, state) =>

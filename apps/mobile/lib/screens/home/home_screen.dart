@@ -500,13 +500,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _sectionHeader(context, title: 'Hot in Akoka', seeAll: true),
+                    child: _sectionHeader(context, title: 'Hot in Akoka', seeAll: true,
+                      onSeeAll: () => context.push('/explore')),
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 380,
+                    height: 420,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -764,6 +765,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String title,
     String? trailing,
     bool seeAll = false,
+    VoidCallback? onSeeAll,
   }) {
     return Row(
       children: [
@@ -782,18 +784,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               color: AppColors.primary,
             ),
           ),
-        if (seeAll) ...[
-          Text(
-            'See all',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+        if (seeAll)
+          GestureDetector(
+            onTap: onSeeAll ?? () => context.push('/explore'),
+            child: Row(
+              children: [
+                Text(
+                  'See all',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+              ],
             ),
           ),
-          const SizedBox(width: 2),
-          Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
-        ],
       ],
     );
   }
