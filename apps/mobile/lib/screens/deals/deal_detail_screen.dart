@@ -298,7 +298,7 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                       // ──── ICON-LED ATTRIBUTES ────
                       GestureDetector(
                         onTap: () => context.push('/vendor/${deal.vendorId}'),
-                        child: _attribute(Icons.storefront_outlined, deal.vendorName, deal.vendorAddress ?? 'Pickup at vendor'),
+                        child: _verifiedAttribute(Icons.storefront_outlined, deal.vendorName, deal.vendorAddress ?? 'Pickup at vendor'),
                       ),
                       const SizedBox(height: 10),
                       _attribute(Icons.access_time, '${deal.vendorOpensAt.replaceAll(':00', '')} – ${deal.vendorClosesAt.replaceAll(':00', '')}',
@@ -398,14 +398,22 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                             ),
                           );
                         },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.flag_outlined, size: 14, color: AppColors.textTertiary),
-                            const SizedBox(width: 4),
-                            Text('Report an issue with this vendor',
-                                style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
-                          ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.shield_outlined, size: 16, color: AppColors.textSecondary),
+                              const SizedBox(width: 6),
+                              Text('Report an issue with this vendor',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+                            ],
+                          ),
                         ),
                       ),
 
@@ -456,6 +464,38 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
   String _formatNaira(int kobo) {
     final naira = kobo ~/ 100;
     return '₦${naira.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+  }
+
+  Widget _verifiedAttribute(IconData icon, String title, String subtitle) {
+    return Row(
+      children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.verified, size: 14, color: AppColors.success),
+                ],
+              ),
+              Text(subtitle, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            ],
+          ),
+        ),
+        Icon(Icons.chevron_right, size: 18, color: AppColors.textTertiary),
+      ],
+    );
   }
 
   Widget _attribute(IconData icon, String title, String subtitle) {
