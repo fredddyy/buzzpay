@@ -622,7 +622,7 @@ function DealModal({ deal, vendors, campaignPresets, onClose, onSaved }: {
                   <input value={form.featuredSection} onChange={e => update("featuredSection", e.target.value)}
                     placeholder="e.g. Hot in Akoka" style={inputStyle} />
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {[...SECTION_PRESETS, ...(campaignPresets || [])].filter((s, i, arr) => arr.findIndex(x => x.name === s.name) === i).map(s => (
+                    {(campaignPresets || []).map(s => (
                       <button key={s.name} type="button"
                         onClick={() => {
                           setForm(prev => ({
