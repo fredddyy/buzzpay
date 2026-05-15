@@ -264,7 +264,7 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: _qty < deal.remainingQty.clamp(1, 10)
-                                    ? AppColors.primary : AppColors.border.withValues(alpha: 0.3),
+                                    ? AppColors.primary.withValues(alpha: 0.1) : AppColors.border.withValues(alpha: 0.3),
                                 ),
                                 child: Icon(Icons.add, size: 18,
                                   color: _qty < deal.remainingQty.clamp(1, 10)
