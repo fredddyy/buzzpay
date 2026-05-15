@@ -158,6 +158,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  String _roundedCount(int count) {
+    if (count >= 100) return '${(count ~/ 50) * 50}+';
+    if (count >= 20) return '${(count ~/ 10) * 10}+';
+    return '$count+';
+  }
+
   void scrollToTop() {
     _scrollController.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
   }
@@ -712,23 +718,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 if (deals.deals.length > _feedLimit)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                      padding: const EdgeInsets.fromLTRB(20, 36, 20, 0),
                       child: GestureDetector(
-                        onTap: () => context.push('/explore', extra: {'mode': 'all'}),
+                        onTap: () {
+                          HapticFeedback.mediumImpact();
+                          context.push('/explore', extra: {'mode': 'all'});
+                        },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          height: 60,
                           decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                            color: AppColors.primary.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.06), blurRadius: 16, offset: const Offset(0, 4))],
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text('Explore All ${deals.total} Deals',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                              const SizedBox(width: 6),
-                              Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.primary),
+                              Image.asset('assets/icons/gift_3d.png', width: 24, height: 24,
+                                errorBuilder: (_, __, ___) => const Text('🎁', style: TextStyle(fontSize: 18))),
+                              const SizedBox(width: 10),
+                              Text('Explore All ${_roundedCount(deals.deals.length)} Deals',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 24, height: 24,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
+                              ),
                             ],
                           ),
                         ),
