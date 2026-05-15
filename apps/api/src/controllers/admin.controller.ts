@@ -107,7 +107,9 @@ export const adminController = {
         guestAccess: (d as any).guestAccess ?? false,
         dailyStart: (d as any).dailyStart ?? null,
         dailyEnd: (d as any).dailyEnd ?? null,
+        previewStart: (d as any).previewStart ?? null,
         activeDays: (d as any).activeDays ?? [],
+        isRecurring: (d as any).isRecurring ?? false,
         featuredSection: (d as any).featuredSection ?? null,
       }));
 
@@ -140,7 +142,9 @@ export const adminController = {
           guestAccess: guestAccess ?? false,
           dailyStart: dailyStart || null,
           dailyEnd: dailyEnd || null,
+          previewStart: previewStart || null,
           activeDays: activeDays || [],
+          isRecurring: isRecurring ?? false,
           featuredSection: featuredSection || null,
         },
         include: { vendor: { select: { businessName: true } } },
@@ -161,7 +165,7 @@ export const adminController = {
   async updateDeal(req: Request, res: Response, next: NextFunction) {
     try {
       const id = req.params.id as string;
-      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess, dailyStart, dailyEnd, activeDays, featuredSection } = req.body;
+      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess, dailyStart, dailyEnd, previewStart, activeDays, featuredSection, isRecurring } = req.body;
 
       const existing = await prisma.deal.findUnique({ where: { id } });
       if (!existing) throw new AppError(404, 'Deal not found');
@@ -184,8 +188,10 @@ export const adminController = {
           ...(guestAccess !== undefined && { guestAccess }),
           ...(dailyStart !== undefined && { dailyStart: dailyStart || null }),
           ...(dailyEnd !== undefined && { dailyEnd: dailyEnd || null }),
+          ...(previewStart !== undefined && { previewStart: previewStart || null }),
           ...(activeDays !== undefined && { activeDays }),
           ...(featuredSection !== undefined && { featuredSection: featuredSection || null }),
+          ...(isRecurring !== undefined && { isRecurring }),
         },
       });
 

@@ -22,8 +22,68 @@ function isVendorOpen(opensAt: string, closesAt: string): boolean {
   return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
 }
 
+function getWatTime() {
+  const now = new Date();
+  const watHours = (now.getUTCHours() + 1) % 24;
+  const watMinutes = now.getUTCMinutes();
+  const currentMinutes = watHours * 60 + watMinutes;
+  const currentDay = ((now.getUTCDay() + (now.getUTCHours() + 1 >= 24 ? 1 : 0)) % 7);
+  return { currentMinutes, currentDay };
+}
+
+function toMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+/**
+ * Compute deal lifecycle status:
+ * - "preview": visible but not purchasable (previewStart <= now < dailyStart)
+ * - "active": live and purchasable (dailyStart <= now < dailyEnd)
+ * - "ended": daily window passed for today
+ * - "upcoming": starts within 2 hours
+ * - "available": no daily window, always active
+ */
+function computeDealStatus(d: any): { status: string; canRedeem: boolean; minutesRemaining: number; startsInMinutes: number } {
+  const { currentMinutes, currentDay } = getWatTime();
+
+  // No daily window → always available
+  if (!d.dailyStart || !d.dailyEnd) {
+    return { status: 'available', canRedeem: true, minutesRemaining: 0, startsInMinutes: 0 };
+  }
+
+  // Check active days
+  if (d.activeDays && d.activeDays.length > 0 && !d.activeDays.includes(currentDay)) {
+    return { status: 'ended', canRedeem: false, minutesRemaining: 0, startsInMinutes: 0 };
+  }
+
+  const startMin = toMinutes(d.dailyStart);
+  const endMin = toMinutes(d.dailyEnd);
+  const previewMin = d.previewStart ? toMinutes(d.previewStart) : startMin - 120; // default: 2h before
+
+  if (currentMinutes >= startMin && currentMinutes < endMin) {
+    return { status: 'active', canRedeem: true, minutesRemaining: endMin - currentMinutes, startsInMinutes: 0 };
+  }
+
+  if (currentMinutes >= previewMin && currentMinutes < startMin) {
+    return { status: 'preview', canRedeem: false, minutesRemaining: 0, startsInMinutes: startMin - currentMinutes };
+  }
+
+  if (currentMinutes < previewMin && (startMin - currentMinutes) <= 120) {
+    return { status: 'upcoming', canRedeem: false, minutesRemaining: 0, startsInMinutes: startMin - currentMinutes };
+  }
+
+  if (currentMinutes >= endMin) {
+    return { status: 'ended', canRedeem: false, minutesRemaining: 0, startsInMinutes: 0 };
+  }
+
+  return { status: 'available', canRedeem: true, minutesRemaining: 0, startsInMinutes: 0 };
+}
+
 function mapDeal(d: any) {
   const open = isVendorOpen(d.vendor.opensAt, d.vendor.closesAt);
+  const lifecycle = computeDealStatus(d);
+
   return {
     id: d.id,
     vendorId: d.vendorId,
@@ -49,8 +109,15 @@ function mapDeal(d: any) {
     guestAccess: d.guestAccess ?? false,
     dailyStart: d.dailyStart ?? null,
     dailyEnd: d.dailyEnd ?? null,
+    previewStart: d.previewStart ?? null,
     activeDays: d.activeDays ?? [],
+    isRecurring: d.isRecurring ?? false,
     featuredSection: d.featuredSection ?? null,
+    // Computed lifecycle
+    dealStatus: lifecycle.status,
+    canRedeem: lifecycle.canRedeem,
+    minutesRemaining: lifecycle.minutesRemaining,
+    startsInMinutes: lifecycle.startsInMinutes,
   };
 }
 

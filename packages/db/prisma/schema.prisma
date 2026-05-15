@@ -127,7 +127,9 @@ model Deal {
   guestAccess   Boolean      @default(false) // visible + purchasable by unverified students
   dailyStart    String?      // HH:mm — daily window start (WAT)
   dailyEnd      String?      // HH:mm — daily window end (WAT)
+  previewStart  String?      // HH:mm — when deal becomes visible in preview mode (WAT)
   activeDays    Int[]        @default([]) // 0=Sun..6=Sat — empty means every day
+  isRecurring   Boolean      @default(false) // repeats daily within startsAt–expiresAt
   featuredSection String?    // e.g. "Hot in Akoka", "Breakfast Rush"
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

@@ -254,13 +254,13 @@ export default function DealsPage() {
 /* Deal Modal — Create & Edit               */
 /* ──────────────────────────────────────── */
 
-const SECTION_PRESETS: { name: string; start: string; end: string; days: number[] }[] = [
-  { name: "Hot in Akoka", start: "", end: "", days: [0,1,2,3,4,5,6] },
-  { name: "Breakfast Rush", start: "07:00", end: "10:30", days: [1,2,3,4,5] },
-  { name: "Lunch Special", start: "12:00", end: "15:30", days: [1,2,3,4,5] },
-  { name: "Happy Hour", start: "16:00", end: "19:00", days: [1,2,3,4,5] },
-  { name: "Night Owl", start: "21:00", end: "23:59", days: [0,1,2,3,4,5,6] },
-  { name: "Weekend Buzz", start: "10:00", end: "22:00", days: [0,6] },
+const SECTION_PRESETS: { name: string; preview: string; start: string; end: string; days: number[] }[] = [
+  { name: "Hot in Akoka", preview: "", start: "", end: "", days: [0,1,2,3,4,5,6] },
+  { name: "Breakfast Rush", preview: "05:30", start: "07:00", end: "10:30", days: [1,2,3,4,5] },
+  { name: "Lunch Special", preview: "10:00", start: "12:00", end: "15:30", days: [1,2,3,4,5] },
+  { name: "Happy Hour", preview: "14:00", start: "16:00", end: "19:00", days: [1,2,3,4,5] },
+  { name: "Night Owl", preview: "19:00", start: "21:00", end: "23:59", days: [0,1,2,3,4,5,6] },
+  { name: "Weekend Buzz", preview: "08:00", start: "10:00", end: "22:00", days: [0,6] },
 ];
 const DAY_LABELS = ["S","M","T","W","T","F","S"];
 
@@ -290,6 +290,7 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
     hasDailyWindow: (deal as any)?.dailyStart ? true : false,
     dailyStart: (deal as any)?.dailyStart || "08:00",
     dailyEnd: (deal as any)?.dailyEnd || "11:00",
+    previewStart: (deal as any)?.previewStart || "06:00",
     activeDays: (deal as any)?.activeDays || [1, 2, 3, 4, 5],
   });
   const [saving, setSaving] = useState(false);
@@ -324,7 +325,9 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
       guestAccess: form.guestAccess,
       dailyStart: form.hasDailyWindow ? form.dailyStart : null,
       dailyEnd: form.hasDailyWindow ? form.dailyEnd : null,
+      previewStart: form.hasDailyWindow ? form.previewStart : null,
       activeDays: form.hasDailyWindow ? form.activeDays : [],
+      isRecurring: form.hasDailyWindow,
     };
 
     const vendor = vendors.find(v => v.id === form.vendorId);
@@ -512,6 +515,7 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
                             hasDailyWindow: !!s.start,
                             dailyStart: s.start || prev.dailyStart,
                             dailyEnd: s.end || prev.dailyEnd,
+                            previewStart: s.preview || prev.previewStart,
                             activeDays: s.days,
                           }));
                         }}
@@ -543,9 +547,14 @@ function DealModal({ deal, vendors, onClose, onSaved }: {
 
                   {form.hasDailyWindow && (
                     <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label style={{ ...labelStyle, fontSize: 10 }}>From</label>
+                          <label style={{ ...labelStyle, fontSize: 10 }}>Preview From</label>
+                          <input type="time" value={form.previewStart}
+                            onChange={e => update("previewStart", e.target.value)} style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={{ ...labelStyle, fontSize: 10 }}>Active From</label>
                           <input type="time" value={form.dailyStart}
                             onChange={e => update("dailyStart", e.target.value)} style={inputStyle} />
                         </div>

@@ -60,6 +60,7 @@ export const realtimeService = {
   async vendorChanged(vendorId: string, action: 'created' | 'updated' | 'suspended' | 'activated') {
     await this.broadcast('vendors', 'vendor_change', { vendorId, action, timestamp: Date.now() });
     await this.broadcast(`vendor:${vendorId}`, 'vendor_change', { vendorId, action, timestamp: Date.now() });
+    await this.broadcast('deals', 'deal_change', { vendorId, action, type: 'vendor_trending', timestamp: Date.now() });
   },
 
   async settlementProcessed(vendorId: string, amount: number) {
