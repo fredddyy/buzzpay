@@ -192,7 +192,19 @@ export const dealService = {
       const [startH, startM] = d.dailyStart.split(':').map(Number);
       const startMinutes = startH * 60 + startM;
 
-      // Not active yet, but starts within 2 hours
+      // Already active? Skip (it's in happy hour, not upcoming)
+      const [endH, endM] = d.dailyEnd.split(':').map(Number);
+      const endMinutes = endH * 60 + endM;
+      if (currentMinutes >= startMinutes && currentMinutes < endMinutes) return false;
+
+      // In preview state (previewStart <= now < dailyStart) — always show
+      if (d.previewStart) {
+        const [prevH, prevM] = d.previewStart.split(':').map(Number);
+        const previewMinutes = prevH * 60 + prevM;
+        if (currentMinutes >= previewMinutes && currentMinutes < startMinutes) return true;
+      }
+
+      // Not in preview but starts within 2 hours
       return startMinutes > currentMinutes && (startMinutes - currentMinutes) <= 120;
     });
 
