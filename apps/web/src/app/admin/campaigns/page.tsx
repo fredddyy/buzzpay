@@ -1,0 +1,456 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import api from "@/lib/api";
+
+interface Campaign {
+  id: string;
+  name: string;
+  featuredSection: string | null;
+  dailyStart: string | null;
+  dailyEnd: string | null;
+  previewStart: string | null;
+  activeDays: number[];
+  status: string;
+  publishedAt: string | null;
+  dealCount: number;
+  createdAt: string;
+}
+
+interface CampaignDeal {
+  id: string;
+  title: string;
+  vendorId: string;
+  vendorName?: string;
+  category: string;
+  originalPrice: number;
+  studentPrice: number;
+  totalQuantity: number;
+  isActive: boolean;
+}
+
+interface Vendor { id: string; businessName: string; }
+
+const CATEGORIES = ["FOOD", "DRINKS", "SUBSCRIPTIONS", "TRANSPORT", "SHOPPING", "LIFESTYLE"];
+const SECTION_PRESETS = [
+  { name: "Breakfast Rush", preview: "05:30", start: "07:00", end: "10:30", days: [1,2,3,4,5] },
+  { name: "Lunch Special", preview: "10:00", start: "12:00", end: "15:30", days: [1,2,3,4,5] },
+  { name: "Happy Hour", preview: "14:00", start: "16:00", end: "19:00", days: [1,2,3,4,5] },
+  { name: "Night Owl", preview: "19:00", start: "21:00", end: "23:59", days: [0,1,2,3,4,5,6] },
+  { name: "Weekend Buzz", preview: "08:00", start: "10:00", end: "22:00", days: [0,6] },
+];
+const DAY_LABELS = ["S","M","T","W","T","F","S"];
+
+export default function CampaignsPage() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<Campaign | null>(null);
+  const [campaignDeals, setCampaignDeals] = useState<CampaignDeal[]>([]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [campRes, vendRes] = await Promise.all([
+        api.get("/admin/campaigns"),
+        api.get("/admin/vendors"),
+      ]);
+      setCampaigns(campRes.data.data || []);
+      setVendors((vendRes.data.data || []).map((v: any) => ({ id: v.id, businessName: v.businessName })));
+    } catch { setCampaigns([]); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function loadCampaignDeals(id: string) {
+    try {
+      const res = await api.get(`/admin/deals?limit=100`);
+      const all = res.data.data || [];
+      setCampaignDeals(all.filter((d: any) => d.campaignId === id));
+    } catch { setCampaignDeals([]); }
+  }
+
+  async function publish(id: string) {
+    try {
+      await api.post(`/admin/campaigns/${id}/publish`);
+      load();
+      if (selected?.id === id) setSelected({ ...selected!, status: "PUBLISHED" });
+    } catch {}
+  }
+
+  function fmt(kobo: number) { return `₦${(kobo / 100).toLocaleString("en-NG")}`; }
+
+  return (
+    <div className="p-4 lg:p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>Campaigns</h1>
+          <p className="text-[13px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+            Batch-create deals for multiple vendors and publish all at once
+          </p>
+        </div>
+        <button onClick={() => setCreating(true)}
+          className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+          style={{ background: "var(--color-primary)", color: "white" }}>
+          + New Campaign
+        </button>
+      </div>
+
+      {/* Campaign list */}
+      <div className="grid gap-3">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+              <div className="skeleton w-40 h-4 mb-2" /><div className="skeleton w-24 h-3" />
+            </div>
+          ))
+        ) : campaigns.length === 0 ? (
+          <div className="rounded-xl p-12 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+            <p className="text-[13px]" style={{ color: "var(--color-text-muted)" }}>No campaigns yet</p>
+            <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>Create one to batch-publish deals across vendors</p>
+          </div>
+        ) : (
+          campaigns.map(c => (
+            <div key={c.id}
+              className="rounded-xl p-4 cursor-pointer transition-colors"
+              style={{ background: selected?.id === c.id ? "var(--color-primary-surface)" : "var(--color-surface)", border: `1px solid ${selected?.id === c.id ? "var(--color-primary-border)" : "var(--color-border)"}` }}
+              onClick={() => { setSelected(c); loadCampaignDeals(c.id); }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[14px] font-semibold" style={{ color: "var(--color-text)" }}>{c.name}</p>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{
+                        background: c.status === "PUBLISHED" ? "var(--color-success-surface)" : "var(--color-warning-surface)",
+                        color: c.status === "PUBLISHED" ? "var(--color-success)" : "var(--color-warning)",
+                      }}>
+                      {c.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                    {c.featuredSection && <span>{c.featuredSection}</span>}
+                    {c.dailyStart && <span className="font-mono">{c.dailyStart}–{c.dailyEnd}</span>}
+                    <span>{c.dealCount} deal{c.dealCount !== 1 ? "s" : ""}</span>
+                  </div>
+                </div>
+                {c.status === "DRAFT" && (
+                  <button onClick={(e) => { e.stopPropagation(); publish(c.id); }}
+                    className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+                    style={{ background: "var(--color-success)", color: "white" }}>
+                    Publish All
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Selected campaign detail */}
+      {selected && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[15px] font-semibold" style={{ color: "var(--color-text)" }}>
+              {selected.name} — Deals
+            </h2>
+            {selected.status === "DRAFT" && (
+              <button onClick={() => {/* open add deal modal */}}
+                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+                style={{ background: "var(--color-primary-surface)", color: "var(--color-primary)", border: "1px solid var(--color-primary-border)" }}>
+                + Add Deal
+              </button>
+            )}
+          </div>
+
+          {campaignDeals.length === 0 ? (
+            <div className="rounded-xl p-8 text-center" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+              <p className="text-[13px]" style={{ color: "var(--color-text-muted)" }}>No deals in this campaign yet</p>
+            </div>
+          ) : (
+            <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+              <div className="grid grid-cols-[1fr_90px_100px_80px_80px] gap-3 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)" }}>
+                <span>Deal</span><span>Category</span><span>Price</span><span>Stock</span><span>Status</span>
+              </div>
+              {campaignDeals.map(d => (
+                <div key={d.id} className="grid grid-cols-[1fr_90px_100px_80px_80px] gap-3 px-4 py-3 items-center"
+                  style={{ borderBottom: "1px solid var(--color-border)" }}>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{d.title}</p>
+                    <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>{d.vendorName || d.vendorId}</p>
+                  </div>
+                  <span className="text-[11px]" style={{ color: "var(--color-text-secondary)" }}>{d.category}</span>
+                  <span className="text-[13px] font-semibold" style={{ color: "var(--color-primary)" }}>{fmt(d.studentPrice)}</span>
+                  <span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>{d.totalQuantity}</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit"
+                    style={{
+                      background: d.isActive ? "var(--color-success-surface)" : "var(--color-warning-surface)",
+                      color: d.isActive ? "var(--color-success)" : "var(--color-warning)",
+                    }}>
+                    {d.isActive ? "Live" : "Draft"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create campaign modal */}
+      {creating && (
+        <CreateCampaignModal
+          onClose={() => setCreating(false)}
+          onCreated={(campaign) => {
+            setCreating(false);
+            setCampaigns(prev => [campaign, ...prev]);
+            setSelected(campaign);
+            setCampaignDeals([]);
+          }}
+        />
+      )}
+
+      {/* Add deal to campaign modal */}
+      {selected && selected.status === "DRAFT" && (
+        <AddDealPanel
+          campaign={selected}
+          vendors={vendors}
+          onAdded={() => { load(); loadCampaignDeals(selected.id); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────── */
+/* Create Campaign Modal                    */
+/* ──────────────────────────────────────── */
+
+function CreateCampaignModal({ onClose, onCreated }: {
+  onClose: () => void;
+  onCreated: (campaign: Campaign) => void;
+}) {
+  const [name, setName] = useState("");
+  const [featuredSection, setFeaturedSection] = useState("");
+  const [dailyStart, setDailyStart] = useState("08:00");
+  const [dailyEnd, setDailyEnd] = useState("11:00");
+  const [previewStart, setPreviewStart] = useState("06:00");
+  const [activeDays, setActiveDays] = useState<number[]>([1,2,3,4,5]);
+  const [saving, setSaving] = useState(false);
+
+  const inputStyle: React.CSSProperties = {
+    background: "var(--color-surface-light)", border: "1px solid var(--color-border)",
+    color: "var(--color-text)", borderRadius: 10, padding: "10px 14px", fontSize: 13, width: "100%", outline: "none",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em",
+    color: "var(--color-text-muted)", marginBottom: 6, display: "block",
+  };
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await api.post("/admin/campaigns", {
+        name, featuredSection: featuredSection || name,
+        dailyStart, dailyEnd, previewStart, activeDays,
+      });
+      onCreated({ ...res.data.data, dealCount: 0 });
+    } catch {}
+    setSaving(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl p-6"
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>New Campaign</h2>
+          <button onClick={onClose} className="p-1" style={{ color: "var(--color-text-muted)" }}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label style={labelStyle}>Campaign Name *</label>
+            <input value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. Breakfast Rush Monday" style={inputStyle} />
+          </div>
+
+          {/* Preset pills */}
+          <div>
+            <label style={labelStyle}>Quick Setup</label>
+            <div className="flex flex-wrap gap-1.5">
+              {SECTION_PRESETS.map(s => (
+                <button key={s.name} type="button"
+                  onClick={() => { setName(s.name); setFeaturedSection(s.name); setDailyStart(s.start); setDailyEnd(s.end); setPreviewStart(s.preview); setActiveDays(s.days); }}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors"
+                  style={{
+                    background: name === s.name ? "var(--color-primary-surface)" : "var(--color-surface-hover)",
+                    color: name === s.name ? "var(--color-primary)" : "var(--color-text-muted)",
+                    border: `1px solid ${name === s.name ? "var(--color-primary-border)" : "transparent"}`,
+                  }}>
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Section Name on Feed</label>
+            <input value={featuredSection} onChange={e => setFeaturedSection(e.target.value)}
+              placeholder="How it appears to students" style={inputStyle} />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label style={{ ...labelStyle, fontSize: 10 }}>Preview From</label>
+              <input type="time" value={previewStart} onChange={e => setPreviewStart(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ ...labelStyle, fontSize: 10 }}>Active From</label>
+              <input type="time" value={dailyStart} onChange={e => setDailyStart(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ ...labelStyle, fontSize: 10 }}>Ends At</label>
+              <input type="time" value={dailyEnd} onChange={e => setDailyEnd(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ ...labelStyle, fontSize: 10 }}>Active Days</label>
+            <div className="flex gap-1.5">
+              {DAY_LABELS.map((d, i) => {
+                const active = activeDays.includes(i);
+                return (
+                  <button key={i} type="button"
+                    onClick={() => setActiveDays(active ? activeDays.filter(x => x !== i) : [...activeDays, i])}
+                    className="w-8 h-8 rounded-full text-[11px] font-semibold transition-colors"
+                    style={{
+                      background: active ? "var(--color-primary)" : "var(--color-surface-light)",
+                      color: active ? "white" : "var(--color-text-muted)",
+                      border: `1px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
+                    }}>
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-medium"
+              style={{ background: "var(--color-surface-light)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)" }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={saving || !name.trim()}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold disabled:opacity-50"
+              style={{ background: "var(--color-primary)", color: "white" }}>
+              {saving ? "Creating..." : "Create Campaign"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────── */
+/* Add Deal to Campaign Panel               */
+/* ──────────────────────────────────────── */
+
+function AddDealPanel({ campaign, vendors, onAdded }: {
+  campaign: Campaign;
+  vendors: Vendor[];
+  onAdded: () => void;
+}) {
+  const [vendorId, setVendorId] = useState(vendors[0]?.id || "");
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("FOOD");
+  const [originalPrice, setOriginalPrice] = useState("");
+  const [studentPrice, setStudentPrice] = useState("");
+  const [totalQuantity, setTotalQuantity] = useState("50");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const inputStyle: React.CSSProperties = {
+    background: "var(--color-surface-light)", border: "1px solid var(--color-border)",
+    color: "var(--color-text)", borderRadius: 10, padding: "8px 12px", fontSize: 13, width: "100%", outline: "none",
+  };
+
+  async function add() {
+    if (!title || !originalPrice || !studentPrice) return;
+    setSaving(true); setMessage("");
+    try {
+      const now = new Date();
+      await api.post(`/admin/campaigns/${campaign.id}/deals`, {
+        vendorId, title, category,
+        originalPrice: Math.round(parseFloat(originalPrice) * 100),
+        studentPrice: Math.round(parseFloat(studentPrice) * 100),
+        totalQuantity: parseInt(totalQuantity) || 50,
+        startsAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + 30 * 86400000).toISOString(),
+      });
+      setMessage(`Added "${title}" for ${vendors.find(v => v.id === vendorId)?.businessName}`);
+      setTitle(""); setOriginalPrice(""); setStudentPrice("");
+      onAdded();
+    } catch {
+      setMessage("Failed to add deal");
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="mt-4 rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-primary-border)" }}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-primary)", letterSpacing: "0.05em" }}>
+        Quick Add Deal to "{campaign.name}"
+      </p>
+      <div className="grid grid-cols-[1fr_1fr_80px_80px_80px_60px_auto] gap-2 items-end">
+        <div>
+          <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor</label>
+          <select value={vendorId} onChange={e => setVendorId(e.target.value)} style={inputStyle}>
+            {vendors.map(v => <option key={v.id} value={v.id}>{v.businessName}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Deal Title</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Egg Wrap" style={inputStyle} />
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Category</label>
+          <select value={category} onChange={e => setCategory(e.target.value)} style={inputStyle}>
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Price (₦)</label>
+          <input type="number" value={originalPrice} onChange={e => setOriginalPrice(e.target.value)} placeholder="1000" style={inputStyle} />
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Student (₦)</label>
+          <input type="number" value={studentPrice} onChange={e => setStudentPrice(e.target.value)} placeholder="700" style={inputStyle} />
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Qty</label>
+          <input type="number" value={totalQuantity} onChange={e => setTotalQuantity(e.target.value)} style={inputStyle} />
+        </div>
+        <button onClick={add} disabled={saving || !title}
+          className="px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50"
+          style={{ background: "var(--color-primary)", color: "white" }}>
+          {saving ? "..." : "Add"}
+        </button>
+      </div>
+      {message && (
+        <p className="text-[11px] mt-2" style={{ color: message.startsWith("Failed") ? "var(--color-error)" : "var(--color-success)" }}>
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}

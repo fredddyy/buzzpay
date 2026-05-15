@@ -112,6 +112,7 @@ export const adminController = {
         isRecurring: (d as any).isRecurring ?? false,
         featuredSection: (d as any).featuredSection ?? null,
         tags: (d as any).tags ?? [],
+        campaignId: (d as any).campaignId ?? null,
       }));
 
       res.json({ success: true, data: mapped, meta: paginationMeta(total, page, limit) });
