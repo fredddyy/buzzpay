@@ -65,7 +65,7 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
         originalPriceKobo: deal.originalPrice,
       );
     } else {
-      context.push('/checkout/${deal.id}');
+      context.push('/checkout/${deal.id}', extra: {'qty': _qty});
     }
   }
 

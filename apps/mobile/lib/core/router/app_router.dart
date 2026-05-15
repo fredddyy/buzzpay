@@ -122,8 +122,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/checkout/:dealId',
-        builder: (context, state) =>
-            CheckoutScreen(dealId: state.pathParameters['dealId']!),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return CheckoutScreen(
+            dealId: state.pathParameters['dealId']!,
+            qty: extra['qty'] as int? ?? 1,
+          );
+        },
       ),
       GoRoute(
         path: '/vendor/:id',

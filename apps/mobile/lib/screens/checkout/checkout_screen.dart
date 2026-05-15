@@ -11,8 +11,9 @@ import 'paystack_webview.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   final String dealId;
+  final int qty;
 
-  const CheckoutScreen({super.key, required this.dealId});
+  const CheckoutScreen({super.key, required this.dealId, this.qty = 1});
 
   @override
   ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -199,11 +200,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         const Text('Price Breakdown',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 18),
-                        _receiptRow('Original Price', deal.formattedOriginalPrice, strike: true),
+                        if (widget.qty > 1) ...[
+                          _receiptRow('${widget.qty}x Student Price', _fmtKobo(deal.studentPrice * widget.qty)),
+                          const SizedBox(height: 6),
+                          _receiptRow('Unit Price', deal.formattedStudentPrice, muted: true),
+                        ] else ...[
+                          _receiptRow('Original Price', deal.formattedOriginalPrice, strike: true),
+                          const SizedBox(height: 12),
+                          _receiptRow('Student Price', deal.formattedStudentPrice),
+                        ],
                         const SizedBox(height: 12),
-                        _receiptRow('Student Price', deal.formattedStudentPrice),
-                        const SizedBox(height: 12),
-                        // Savings — vibrant highlight
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -213,31 +219,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ),
                           child: Center(
                             child: Text(
-                              'You save ${deal.formattedSavings}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF16A34A),
-                              ),
+                              'You save ${_fmtKobo(deal.savings * widget.qty)}',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF16A34A)),
                             ),
                           ),
                         ),
                         const SizedBox(height: 16),
-                        // Divider
                         Container(height: 1, color: AppColors.divider),
                         const SizedBox(height: 14),
-                        // Total
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Total',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                            PriceDisplay(
-                              studentPriceKobo: deal.studentPrice,
-                              originalPriceKobo: deal.originalPrice,
-                              studentFontSize: 26,
-                              originalFontSize: 0.01, // hide original in total
-                            ),
+                            const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                            Text(_fmtKobo(deal.studentPrice * widget.qty),
+                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primary)),
                           ],
                         ),
                       ],
@@ -333,7 +328,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       child: _paying
                           ? const SizedBox(width: 20, height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text('Confirm & Pay ${deal.formattedStudentPrice}',
+                          : Text('Confirm & Pay ${_fmtKobo(deal.studentPrice * widget.qty)}',
                               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                     ),
                   ),
@@ -356,7 +351,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _receiptRow(String label, String value, {bool strike = false}) {
+  String _fmtKobo(int kobo) {
+    final naira = kobo ~/ 100;
+    return '₦${naira.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+  }
+
+  Widget _receiptRow(String label, String value, {bool strike = false, bool muted = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
