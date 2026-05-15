@@ -11,7 +11,8 @@ enum SortMode { newest, priceLow, priceHigh, discount, endingSoon }
 
 class DealsExploreScreen extends ConsumerStatefulWidget {
   final String? initialCategory;
-  const DealsExploreScreen({super.key, this.initialCategory});
+  final String mode; // 'all', 'hot', 'vendors'
+  const DealsExploreScreen({super.key, this.initialCategory, this.mode = 'all'});
 
   @override
   ConsumerState<DealsExploreScreen> createState() => _DealsExploreScreenState();
@@ -42,12 +43,22 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
     SortMode.endingSoon: 'Ending Soon',
   };
 
+  String get _title => switch (widget.mode) {
+    'vendors' => 'Campus Plugs',
+    'hot' => 'Flash Deals',
+    _ => 'Explore',
+  };
+
   @override
   void initState() {
     super.initState();
     _category = widget.initialCategory;
+    if (widget.mode == 'hot') _sort = SortMode.endingSoon;
     Future.microtask(() {
       ref.read(dealsProvider.notifier).loadDeals(refresh: true);
+      if (widget.mode == 'vendors') {
+        ref.read(dealsProvider.notifier).loadTrendingVendors();
+      }
     });
   }
 
@@ -59,6 +70,12 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
 
   List<Deal> _filtered(List<Deal> deals) {
     var result = deals.toList();
+
+    // Mode-specific filtering
+    if (widget.mode == 'hot') {
+      result = result.where((d) => d.isFeatured || d.dailyStart != null).toList();
+    }
+
     if (_category != null) result = result.where((d) => d.category == _category).toList();
     if (_search.isNotEmpty) {
       final q = _search.toLowerCase();
@@ -97,7 +114,7 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
                     child: const Icon(Icons.arrow_back, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Explore', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  Text(_title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                   const Spacer(),
                   Text('${filtered.length}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
                   Text(' deals', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
@@ -147,8 +164,8 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
               ),
             ),
 
-            // ── Categories ──
-            Padding(
+            // ── Categories (hidden in vendor mode) ──
+            if (widget.mode != 'vendors') Padding(
               padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
               child: SizedBox(
                 height: 34,
@@ -180,8 +197,8 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
               ),
             ),
 
-            // ── Sort dropdown (hidden by default) ──
-            if (_showSort)
+            // ── Sort dropdown (hidden by default, not in vendor mode) ──
+            if (_showSort && widget.mode != 'vendors')
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                 child: Wrap(
@@ -208,13 +225,15 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
 
             const SizedBox(height: 10),
 
-            // ── Grid ──
+            // ── Content ──
             Expanded(
-              child: deals.isLoading && deals.deals.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : filtered.isEmpty
-                      ? _emptyState()
-                      : GridView.builder(
+              child: widget.mode == 'vendors'
+                  ? _vendorsList(deals)
+                  : deals.isLoading && deals.deals.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : filtered.isEmpty
+                          ? _emptyState()
+                          : GridView.builder(
                           padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
@@ -359,6 +378,96 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _vendorsList(DealsState deals) {
+    // Build unique vendors from deals
+    final vendorMap = <String, ({String name, String? logo, int dealCount, bool isOpen, String opensAt})>{};
+    for (final d in deals.deals) {
+      if (_search.isNotEmpty && !d.vendorName.toLowerCase().contains(_search.toLowerCase())) continue;
+      vendorMap.putIfAbsent(d.vendorId, () => (
+        name: d.vendorName,
+        logo: d.vendorLogo,
+        dealCount: 0,
+        isOpen: d.vendorIsOpen,
+        opensAt: d.vendorOpensAt,
+      ));
+      vendorMap[d.vendorId] = (
+        name: vendorMap[d.vendorId]!.name,
+        logo: vendorMap[d.vendorId]!.logo,
+        dealCount: vendorMap[d.vendorId]!.dealCount + 1,
+        isOpen: vendorMap[d.vendorId]!.isOpen,
+        opensAt: vendorMap[d.vendorId]!.opensAt,
+      );
+    }
+    final vendors = vendorMap.entries.toList();
+
+    if (vendors.isEmpty) return _emptyState();
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
+      itemCount: vendors.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) {
+        final e = vendors[i];
+        final v = e.value;
+        return GestureDetector(
+          onTap: () => context.push('/vendor/${e.key}'),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Text(v.name[0], style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(v.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6, height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: v.isOpen ? AppColors.success : AppColors.textTertiary,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            v.isOpen ? 'Open now' : 'Opens at ${v.opensAt}',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: v.isOpen ? AppColors.success : AppColors.textTertiary),
+                          ),
+                          const SizedBox(width: 10),
+                          Text('${v.dealCount} deal${v.dealCount != 1 ? 's' : ''}',
+                            style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 20, color: AppColors.textTertiary),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

@@ -109,7 +109,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/explore',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
-          return DealsExploreScreen(initialCategory: extra['category'] as String?);
+          return DealsExploreScreen(
+            initialCategory: extra['category'] as String?,
+            mode: extra['mode'] as String? ?? 'all',
+          );
         },
       ),
       GoRoute(
