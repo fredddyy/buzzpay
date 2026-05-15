@@ -74,21 +74,44 @@ export default function DealsPage() {
   }, [page, search, category, status]);
 
   useEffect(() => { load(); }, [load]);
-  const [campaigns, setCampaigns] = useState<{ name: string; preview: string; start: string; end: string; days: number[] }[]>([]);
-  useEffect(() => { loadVendors(); loadCampaigns(); }, []);
+  const [sectionPresets, setSectionPresets] = useState<{ name: string; preview: string; start: string; end: string; days: number[] }[]>([]);
+  useEffect(() => { loadVendors(); loadSectionPresets(); }, []);
   useEffect(() => subscribeAdmin({ onDealChanged: load }), [load]);
 
-  async function loadCampaigns() {
+  async function loadSectionPresets() {
     try {
-      const res = await api.get("/admin/campaigns");
-      const camps = (res.data.data || []).map((c: any) => ({
-        name: c.featuredSection || c.name,
-        preview: c.previewStart || "",
-        start: c.dailyStart || "",
-        end: c.dailyEnd || "",
-        days: c.activeDays || [0,1,2,3,4,5,6],
-      }));
-      setCampaigns(camps);
+      const seen = new Map<string, { name: string; preview: string; start: string; end: string; days: number[] }>();
+
+      // 1. From existing deals — extract unique featuredSection names + their schedules
+      const dealsRes = await api.get("/admin/deals?limit=100");
+      for (const d of (dealsRes.data.data || [])) {
+        if (d.featuredSection && !seen.has(d.featuredSection)) {
+          seen.set(d.featuredSection, {
+            name: d.featuredSection,
+            preview: d.previewStart || "",
+            start: d.dailyStart || "",
+            end: d.dailyEnd || "",
+            days: d.activeDays || [],
+          });
+        }
+      }
+
+      // 2. From campaigns
+      const campRes = await api.get("/admin/campaigns");
+      for (const c of (campRes.data.data || [])) {
+        const name = c.featuredSection || c.name;
+        if (!seen.has(name)) {
+          seen.set(name, {
+            name,
+            preview: c.previewStart || "",
+            start: c.dailyStart || "",
+            end: c.dailyEnd || "",
+            days: c.activeDays || [],
+          });
+        }
+      }
+
+      setSectionPresets(Array.from(seen.values()));
     } catch {}
   }
 
@@ -347,7 +370,7 @@ export default function DealsPage() {
         <DealModal
           deal={modalDeal === "new" ? undefined : modalDeal}
           vendors={vendors}
-          campaignPresets={campaigns}
+          campaignPresets={sectionPresets}
           onClose={() => setModalDeal(null)}
           onSaved={handleSaved}
         />
