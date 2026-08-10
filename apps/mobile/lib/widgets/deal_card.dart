@@ -15,8 +15,10 @@ class DealCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isVerified;
   final LoyaltyCard? loyaltyCard;
+  final VoidCallback? onAddToCart;
+  final bool isInCart;
 
-  const DealCard({super.key, required this.deal, required this.onTap, this.isVerified = true, this.loyaltyCard});
+  const DealCard({super.key, required this.deal, required this.onTap, this.isVerified = true, this.loyaltyCard, this.onAddToCart, this.isInCart = false});
 
   @override
   Widget build(BuildContext context) {
@@ -304,8 +306,24 @@ class DealCard extends StatelessWidget {
   }
 
   Widget _buildCta(BuildContext context, Deal deal, bool isClosed) {
+    // Closed vendor — disabled button
+    if (isClosed) {
+      return ElevatedButton(
+        onPressed: null,
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: AppColors.border,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        child: Text(
+          'Opens at ${deal.opensAtFormatted}',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+        ),
+      );
+    }
+
     // Instant gate — unverified user taps Pay, sheet appears over feed
-    if (!isVerified && !isClosed) {
+    if (!isVerified) {
       return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
@@ -333,21 +351,6 @@ class DealCard extends StatelessWidget {
             'Pay ${deal.formattedStudentPrice}',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
           ),
-        ),
-      );
-    }
-
-    if (isClosed) {
-      return ElevatedButton(
-        onPressed: null,
-        style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          backgroundColor: AppColors.border,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        ),
-        child: Text(
-          'Opens at ${deal.opensAtFormatted}',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
         ),
       );
     }
@@ -386,29 +389,60 @@ class DealCard extends StatelessWidget {
       );
     }
 
-    // Default — purple pay with glow
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    // Default — Pay button + optional cart icon
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: onTap,
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              child: Text(
+                'Pay ${deal.formattedStudentPrice}',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ),
+        if (onAddToCart != null) ...[
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              if (isInCart) {
+                GoRouter.of(context).push('/cart');
+              } else {
+                onAddToCart!();
+              }
+            },
+            child: Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                color: isInCart ? AppColors.success.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                isInCart ? Icons.check : Icons.add_shopping_cart,
+                size: 16,
+                color: isInCart ? AppColors.success : AppColors.primary,
+              ),
+            ),
           ),
         ],
-      ),
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        ),
-        child: Text(
-          'Pay ${deal.formattedStudentPrice}',
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-        ),
-      ),
+      ],
     );
   }
 }

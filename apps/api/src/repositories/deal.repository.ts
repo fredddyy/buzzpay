@@ -13,6 +13,7 @@ export const dealRepository = {
       expiresAt: { gt: new Date() },
       startsAt: { lte: new Date() },
       remainingQty: { gt: 0 },
+      dailyStart: null as string | null, // Exclude time-window deals from main feed
       ...(params.category && { category: params.category }),
       ...(params.search && {
         OR: [
@@ -34,6 +35,20 @@ export const dealRepository = {
     ]);
 
     return { deals, total };
+  },
+
+  async findWithDailyWindow(limit: number = 100) {
+    return prisma.deal.findMany({
+      where: {
+        isActive: true,
+        expiresAt: { gt: new Date() },
+        remainingQty: { gt: 0 },
+        dailyStart: { not: null },
+      },
+      include: { vendor: { select: { businessName: true, logoUrl: true, opensAt: true, closesAt: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
   },
 
   async findFeatured(limit: number = 10) {
@@ -75,17 +90,35 @@ export const dealRepository = {
     });
   },
 
-  async decrementQuantity(id: string) {
+  async decrementQuantity(id: string, amount: number = 1) {
     return prisma.deal.update({
       where: { id },
-      data: { remainingQty: { decrement: 1 } },
+      data: { remainingQty: { decrement: amount } },
     });
   },
 
-  async incrementQuantity(id: string) {
+  async incrementQuantity(id: string, amount: number = 1) {
     return prisma.deal.update({
       where: { id },
-      data: { remainingQty: { increment: 1 } },
+      data: { remainingQty: { increment: amount } },
+    });
+  },
+
+  /** Atomically decrement stock — returns null if insufficient */
+  async decrementQuantityAtomic(id: string, amount: number) {
+    const result = await prisma.$queryRaw<{ id: string }[]>`
+      UPDATE "Deal"
+      SET "remainingQty" = "remainingQty" - ${amount}
+      WHERE id = ${id} AND "remainingQty" >= ${amount}
+      RETURNING id
+    `;
+    return result.length > 0;
+  },
+
+  async stockCheck(dealIds: string[]) {
+    return prisma.deal.findMany({
+      where: { id: { in: dealIds } },
+      select: { id: true, remainingQty: true, isActive: true, studentPrice: true, expiresAt: true },
     });
   },
 };

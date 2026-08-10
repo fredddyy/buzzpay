@@ -55,7 +55,13 @@ export const voucherController = {
         const result = await voucherService.redeemByQr(qrData, req.user!.userId);
         res.json({ success: true, data: result });
         return;
-      } catch (_) {}
+      } catch (qrErr: unknown) {
+        // Only fall through to code lookup if QR data wasn't found
+        // Re-throw if it's a legitimate error (wrong vendor, already redeemed, expired)
+        if (qrErr instanceof Error && 'statusCode' in qrErr && (qrErr as { statusCode: number }).statusCode !== 404) {
+          throw qrErr;
+        }
+      }
 
       // Try as manual code (e.g. Y9W5S6BG)
       const result = await voucherService.redeemByCode(qrData, req.user!.userId);

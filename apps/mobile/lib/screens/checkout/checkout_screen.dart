@@ -9,6 +9,7 @@ import '../../models/deal.dart';
 import '../../providers/api_provider.dart';
 import '../../widgets/price_display.dart';
 import 'paystack_webview.dart';
+import 'transfer_screen.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   final String dealId;
@@ -70,7 +71,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final response = await api.post('/payments/initialize', data: {'dealId': widget.dealId});
       final data = response.data['data'];
       final reference = data['reference'] as String;
-      if (mounted) await _openPaystackWebView(reference, data['authorizationUrl'] as String);
+      final amount = data['amount'] as int? ?? _deal!.studentPrice;
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TransferScreen(
+              reference: reference,
+              accessCode: data['accessCode'] as String,
+              authorizationUrl: data['authorizationUrl'] as String,
+              amount: amount,
+              vendorName: _deal!.vendorName,
+            ),
+          ),
+        );
+        setState(() => _paying = false);
+      }
     } catch (e) {
       String msg = 'Payment failed. Try again.';
       try { msg = (e as dynamic).response?.data?['message'] ?? msg; } catch (_) {}

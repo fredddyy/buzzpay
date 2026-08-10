@@ -144,7 +144,8 @@ export const dealService = {
 
   async happyHour() {
     // Find deals with daily windows that are currently active
-    const allDeals = await dealRepository.findActive({ page: 1, limit: 100 });
+    const allDealsRaw = await dealRepository.findWithDailyWindow();
+    const allDeals = { deals: allDealsRaw };
     const now = new Date();
     // WAT = UTC+1
     const watHours = (now.getUTCHours() + 1) % 24;
@@ -178,7 +179,8 @@ export const dealService = {
   },
 
   async upcoming() {
-    const allDeals = await dealRepository.findActive({ page: 1, limit: 100 });
+    const allDealsRaw = await dealRepository.findWithDailyWindow();
+    const allDeals = { deals: allDealsRaw };
     const now = new Date();
     const watHours = (now.getUTCHours() + 1) % 24;
     const watMinutes = now.getUTCMinutes();
@@ -204,12 +206,14 @@ export const dealService = {
         if (currentMinutes >= previewMinutes && currentMinutes < startMinutes) return true;
       }
 
-      // Not in preview but starts within 2 hours
-      return startMinutes > currentMinutes && (startMinutes - currentMinutes) <= 120;
+      // Not in preview but starts later today
+      return startMinutes > currentMinutes;
     });
 
     return upcomingDeals.map(mapDeal).map((d: any) => ({
       ...d,
+      dealStatus: 'upcoming',
+      canRedeem: false,
       startsInMinutes: (() => {
         if (!d.dailyStart) return 0;
         const [h, m] = d.dailyStart.split(':').map(Number);
@@ -257,5 +261,15 @@ export const dealService = {
       ...mapDeal(deal),
       vendorAddress: (deal.vendor as any).businessAddress,
     };
+  },
+
+  async stockCheck(dealIds: string[]) {
+    const deals = await dealRepository.stockCheck(dealIds);
+    return deals.map(d => ({
+      dealId: d.id,
+      remainingQty: d.remainingQty,
+      isActive: d.isActive && d.expiresAt > new Date(),
+      studentPrice: d.studentPrice,
+    }));
   },
 };

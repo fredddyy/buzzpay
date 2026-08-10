@@ -70,28 +70,33 @@ class _HappyHourCardState extends State<HappyHourCard> {
     return '$m:$s';
   }
 
-  Widget _buildDealImage(String url) {
-    final fallback = Container(color: const Color(0xFFF5F5F5));
+  Widget _buildDealImage(String? url) {
+    final fallback = Container(
+      color: const Color(0xFFF5F5F5),
+      child: const Center(child: Icon(Icons.fastfood, size: 36, color: AppColors.textTertiary)),
+    );
+    if (url == null || url.isEmpty) return fallback;
     if (url.startsWith('data:image')) {
       try {
         return Image.memory(base64Decode(url.split(',').last), fit: BoxFit.cover, gaplessPlayback: true,
           errorBuilder: (_, __, ___) => fallback);
       } catch (_) { return fallback; }
     }
-    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
-      placeholder: (_, __) => fallback, errorWidget: (_, __, ___) => fallback);
+    return Image.network(url, fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => fallback);
   }
 
-  Widget _buildVendorImage(String url, String name) {
+  Widget _buildVendorImage(String? url, String name) {
     final fallback = Center(child: Text(name.substring(0, 1),
       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)));
+    if (url == null || url.isEmpty) return fallback;
     if (_cachedLogoBytes != null) {
       return Image.memory(_cachedLogoBytes!, fit: BoxFit.cover, gaplessPlayback: true,
         errorBuilder: (_, __, ___) => fallback);
     }
     if (url.startsWith('data:image')) return fallback;
-    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
-      errorWidget: (_, __, ___) => fallback);
+    return Image.network(url, fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => fallback);
   }
 
   double get _progress {
@@ -138,14 +143,7 @@ class _HappyHourCardState extends State<HappyHourCard> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    deal.imageUrl != null
-                        ? _buildDealImage(deal.imageUrl!)
-                        : Container(
-                            color: const Color(0xFFF5F5F5),
-                            child: const Center(
-                            child: Icon(Icons.fastfood, size: 36, color: AppColors.textTertiary),
-                          ),
-                        ),
+                    _buildDealImage(deal.imageUrl),
                   // Subtle gradient at bottom
                   Positioned(
                     bottom: 0,
@@ -248,18 +246,7 @@ class _HappyHourCardState extends State<HappyHourCard> {
                                 color: AppColors.primary.withValues(alpha: 0.1),
                               ),
                               child: ClipOval(
-                                child: deal.vendorLogo != null
-                                    ? _buildVendorImage(deal.vendorLogo!, deal.vendorName)
-                                    : Center(
-                                        child: Text(
-                                          deal.vendorName.substring(0, 1),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ),
+                                child: _buildVendorImage(deal.vendorLogo, deal.vendorName),
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -295,7 +282,8 @@ class _HappyHourCardState extends State<HappyHourCard> {
                         Row(
                           children: [
                             Image.asset('assets/icons/flame_3d.png',
-                                width: 14, height: 14),
+                                width: 14, height: 14,
+                                errorBuilder: (_, __, ___) => const Text('🔥', style: TextStyle(fontSize: 12))),
                             const SizedBox(width: 4),
                             Text(
                               'Ends in ',

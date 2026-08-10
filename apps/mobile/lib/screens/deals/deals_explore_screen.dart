@@ -1,11 +1,15 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/colors.dart';
 import '../../models/deal.dart';
 import '../../providers/deals_provider.dart';
+import '../../widgets/deal_card.dart';
+import '../../widgets/trending_circle.dart';
+import '../../providers/auth_provider.dart';
 
 enum SortMode { newest, priceLow, priceHigh, discount, endingSoon }
 
@@ -56,9 +60,11 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
     if (widget.mode == 'hot') _sort = SortMode.endingSoon;
     Future.microtask(() {
       ref.read(dealsProvider.notifier).loadDeals(refresh: true);
-      if (widget.mode == 'vendors') {
-        ref.read(dealsProvider.notifier).loadTrendingVendors();
-      }
+      ref.read(dealsProvider.notifier).loadTrendingVendors();
+      ref.read(dealsProvider.notifier).loadHappyHour();
+      ref.read(dealsProvider.notifier).loadUpcoming();
+      ref.read(dealsProvider.notifier).loadCollections();
+      ref.read(dealsProvider.notifier).loadFeatured();
     });
   }
 
@@ -233,16 +239,245 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
                       ? const Center(child: CircularProgressIndicator())
                       : filtered.isEmpty
                           ? _emptyState()
-                          : GridView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 0.68,
-                          ),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) => _dealTile(filtered[index]),
+                          : CustomScrollView(
+                          slivers: [
+                            // ── Trending Vendors ──
+                            if (deals.trendingVendors.isNotEmpty && _category == null && _search.isEmpty) ...[
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+                                  child: Text('Trending at UNILAG', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                ),
+                              ),
+                              SliverToBoxAdapter(
+                                child: SizedBox(
+                                  height: 100,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    itemCount: deals.trendingVendors.length,
+                                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                                    itemBuilder: (_, i) {
+                                      final vendor = deals.trendingVendors[i];
+                                      return TrendingCircle(
+                                        vendor: vendor,
+                                        isNew: i < 2,
+                                        onTap: () => context.push('/vendor/${vendor.id}'),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                            ],
+
+                            // ── Happy Hour / Live Deals ──
+                            if (deals.happyHour.isNotEmpty && _category == null && _search.isEmpty) ...[
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                                  child: Row(
+                                    children: [
+                                      Text('Live Deals', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text('Live now', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SliverToBoxAdapter(
+                                child: SizedBox(
+                                  height: 140,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    itemCount: deals.happyHour.length,
+                                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                                    itemBuilder: (_, i) {
+                                      final deal = deals.happyHour[i];
+                                      return _liveDealCard(deal);
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                            ],
+
+                            // ── Dropping Soon ──
+                            if (deals.upcoming.isNotEmpty && _category == null && _search.isEmpty) ...[
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                                  child: Text('Dropping Soon', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                ),
+                              ),
+                              SliverToBoxAdapter(
+                                child: SizedBox(
+                                  height: 90,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    itemCount: deals.upcoming.length,
+                                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                                    itemBuilder: (_, i) {
+                                      final deal = deals.upcoming[i];
+                                      return _droppingSoonChip(deal);
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                            ],
+
+                            // ── Hot in Akoka (Featured) ──
+                            if (deals.featured.isNotEmpty && _category == null && _search.isEmpty) ...[
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                                  child: Row(
+                                    children: [
+                                      const Text('Hot in Akoka', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                      const Spacer(),
+                                      Text('See all >', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SliverToBoxAdapter(
+                                child: SizedBox(
+                                  height: 420,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    itemCount: deals.featured.length,
+                                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                                    itemBuilder: (context, index) {
+                                      final deal = deals.featured[index];
+                                      final authState = ref.watch(authProvider);
+                                      final isVerified = authState.user?.isVerified ?? false;
+                                      return SizedBox(
+                                        width: MediaQuery.of(context).size.width * 0.55,
+                                        child: DealCard(
+                                          deal: deal,
+                                          isVerified: isVerified,
+                                          onTap: () => context.push('/deal/${deal.id}'),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                            ],
+
+                            // ── Collections (Best Sellers, Data & Streaming, etc.) ──
+                            if (deals.collections.isNotEmpty && _category == null && _search.isEmpty) ...[
+                              ...deals.collections.expand((col) => [
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                                    child: Row(
+                                      children: [
+                                        Text(col.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                                        const Spacer(),
+                                        Text('See all >', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                SliverToBoxAdapter(
+                                  child: SizedBox(
+                                    height: 140,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      itemCount: col.deals.length,
+                                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                                      itemBuilder: (context, index) {
+                                        final deal = col.deals[index];
+                                        return GestureDetector(
+                                          onTap: () => context.push('/deal/${deal.id}'),
+                                          child: Container(
+                                            width: 180,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.card,
+                                              borderRadius: BorderRadius.circular(16),
+                                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                ClipRRect(
+                                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                                  child: Container(height: 75, width: 180, color: AppColors.background,
+                                                    child: const Center(child: Icon(Icons.restaurant, color: AppColors.textTertiary))),
+                                                ),
+                                                Padding(
+                                                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(deal.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                                      const SizedBox(height: 2),
+                                                      Row(
+                                                        children: [
+                                                          Text(deal.formattedStudentPrice,
+                                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                                                          const SizedBox(width: 4),
+                                                          Flexible(
+                                                            child: Text(deal.vendorName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                                              style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                              ]),
+                            ],
+
+                            // ── Section divider before grid ──
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                                child: Text('All Deals', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+
+                            // ── Deals Grid ──
+                            SliverPadding(
+                              padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
+                              sliver: SliverGrid(
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                  childAspectRatio: 0.68,
+                                ),
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) => _dealTile(filtered[index]),
+                                  childCount: filtered.length,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
             ),
           ],
@@ -468,6 +703,97 @@ class _DealsExploreScreenState extends ConsumerState<DealsExploreScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _liveDealCard(Deal deal) {
+    return GestureDetector(
+      onTap: () => context.push('/deal/${deal.id}'),
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(child: Icon(Icons.restaurant, size: 16, color: AppColors.primary)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(deal.vendorName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(deal.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, height: 1.2)),
+            const Spacer(),
+            Row(
+              children: [
+                Text(deal.formattedStudentPrice,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                const SizedBox(width: 6),
+                Text(deal.formattedOriginalPrice,
+                  style: TextStyle(fontSize: 10, color: AppColors.textTertiary, decoration: TextDecoration.lineThrough)),
+                const Spacer(),
+                if (deal.minutesRemaining > 0)
+                  Text('${deal.minutesRemaining}m left',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.danger)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _droppingSoonChip(Deal deal) {
+    final dropTime = deal.dailyStart ?? '';
+    return GestureDetector(
+      onTap: () => context.push('/deal/${deal.id}'),
+      child: Container(
+        width: 180,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(deal.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text(deal.vendorName,
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFA726).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                dropTime.isNotEmpty ? 'Drops at $dropTime' : 'Dropping soon',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFF57C00)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -51,6 +51,8 @@ dependencies:
   crypto: ^3.0.6
   connectivity_plus: ^6.1.4
   supabase_flutter: ^2.12.4
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
 
 dev_dependencies:
   flutter_test:

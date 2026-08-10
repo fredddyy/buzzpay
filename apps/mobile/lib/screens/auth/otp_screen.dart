@@ -110,11 +110,16 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     }
   }
 
-  void _resend() {
+  Future<void> _resend() async {
     if (!_canResend) return;
     HapticFeedback.lightImpact();
     _startResendTimer();
-    // TODO: Call API to resend OTP
+    try {
+      final api = ref.read(apiClientProvider);
+      await api.post('/auth/phone/send-otp', data: {'phone': widget.phoneNumber});
+    } catch (_) {
+      // Silently fail — timer already restarted
+    }
   }
 
   @override
@@ -178,10 +183,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   // 6 digit boxes
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(6, (i) => Container(
-                      width: 48,
+                    children: List.generate(6, (i) => Flexible(
+                      child: Container(
                       height: 56,
-                      margin: EdgeInsets.only(left: i > 0 ? 10 : 0),
+                      margin: EdgeInsets.only(left: i > 0 ? 8 : 0),
                       child: TextField(
                         controller: _controllers[i],
                         focusNode: _focusNodes[i],
@@ -207,7 +212,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                         ),
                         onChanged: (v) => _onDigitChanged(i, v),
                       ),
-                    )),
+                    ))),
                   ),
 
                   if (_error != null) ...[

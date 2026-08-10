@@ -48,6 +48,20 @@ export const dealController = {
     }
   },
 
+  async stockCheck(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { dealIds } = req.body;
+      if (!dealIds || !Array.isArray(dealIds)) {
+        res.status(400).json({ success: false, message: 'dealIds[] required' });
+        return;
+      }
+      const result = await dealService.stockCheck(dealIds);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const deal = await dealService.getById(req.params.id);

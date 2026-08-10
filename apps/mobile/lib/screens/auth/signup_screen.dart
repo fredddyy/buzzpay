@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/mock_data.dart';
 import '../../core/theme/colors.dart';
 import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -50,6 +51,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _submit() async {
     if (_nameController.text.trim().length < 2) return;
     setState(() { _loading = true; _error = null; });
+
+    if (useMockData) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) {
+        ref.read(authProvider.notifier).setAuthenticated(
+          name: _nameController.text.trim(),
+          id: 'mock_user',
+        );
+        setState(() => _loading = false);
+        context.go('/');
+      }
+      return;
+    }
 
     try {
       final api = ref.read(apiClientProvider);

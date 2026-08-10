@@ -106,8 +106,8 @@ export default function TransactionsPage() {
               style={{ borderBottom: "1px solid var(--color-border)" }}
               onMouseEnter={e => e.currentTarget.style.background = "var(--color-surface-hover)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-              <span className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{tx.user.fullName}</span>
-              <span className="text-[12px] truncate" style={{ color: "var(--color-text-secondary)" }}>{tx.deal.title}</span>
+              <span className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{tx.user?.fullName ?? "—"}</span>
+              <span className="text-[12px] truncate" style={{ color: "var(--color-text-secondary)" }}>{tx.deal?.title ?? (tx.orderItems?.length ? `${tx.orderItems.length} items` : "Cart order")}</span>
               <span className="text-[13px] font-semibold font-mono" style={{ color: "var(--color-text)" }}>{fmt(tx.amount)}</span>
               <span className="text-[12px] font-mono" style={{ color: "var(--color-success)" }}>{fmt(tx.commission)}</span>
               <span className="text-[12px] font-mono" style={{ color: "var(--color-text-secondary)" }}>{fmt(tx.vendorAmount)}</span>

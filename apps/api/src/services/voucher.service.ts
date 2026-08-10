@@ -2,6 +2,7 @@ import { voucherRepository } from '../repositories/voucher.repository.js';
 import { AppError } from '../middleware/error.js';
 import { buildQrPayload, validateQrPayload, generateQrSecret } from '../utils/qr-totp.js';
 import { realtimeService } from './realtime.service.js';
+import { fcmService } from './fcm.service.js';
 import type { VoucherStatus } from '@prisma/client';
 
 export const voucherService = {
@@ -73,6 +74,7 @@ export const voucherService = {
     await voucherRepository.markRedeemed(voucher.id, true);
     realtimeService.voucherRedeemed(voucher.id, voucher.dealId, voucher.deal.vendor.id);
     realtimeService.voucherStatusChanged(voucher.student.user.id, voucher.id, 'REDEEMED');
+    fcmService.voucherRedeemed(voucher.student.user.id, voucher.deal.title, voucher.deal.vendor.businessName).catch(() => {});
     return {
       voucherId: voucher.id,
       dealTitle: voucher.deal.title,
@@ -95,6 +97,7 @@ export const voucherService = {
     await voucherRepository.markRedeemed(voucher.id, false);
     realtimeService.voucherRedeemed(voucher.id, voucher.dealId, voucher.deal.vendor.id);
     realtimeService.voucherStatusChanged(voucher.student.user.id, voucher.id, 'REDEEMED');
+    fcmService.voucherRedeemed(voucher.student.user.id, voucher.deal.title, voucher.deal.vendor.businessName).catch(() => {});
     return {
       voucherId: voucher.id,
       dealTitle: voucher.deal.title,

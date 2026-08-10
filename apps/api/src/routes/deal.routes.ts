@@ -11,6 +11,7 @@ router.get('/happy-hour', authenticate, dealController.happyHour);
 router.get('/upcoming', authenticate, dealController.upcoming);
 router.get('/featured', authenticate, dealController.featured);
 router.get('/collections', authenticate, dealController.collections);
+router.post('/stock-check', authenticate, dealController.stockCheck);
 router.get('/:id', authenticate, dealController.getById);
 
 export default router;

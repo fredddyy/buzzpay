@@ -6,6 +6,7 @@ import { paymentLimiter } from '../middleware/rateLimit.js';
 const router = Router();
 
 router.post('/initialize', authenticate, paymentLimiter, paymentController.initialize);
+router.post('/cart-checkout', authenticate, paymentLimiter, paymentController.cartCheckout);
 router.get('/verify/:reference', authenticate, paymentController.verify);
 router.post('/webhook', paymentController.webhook); // No auth — Paystack signature verification
 

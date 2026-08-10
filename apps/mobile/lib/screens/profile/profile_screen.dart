@@ -217,6 +217,7 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 6),
                     const Text('BuzzPay v1.0.0',
                         style: TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+                    const SizedBox(height: 120),
                   ],
                 ),
               ),

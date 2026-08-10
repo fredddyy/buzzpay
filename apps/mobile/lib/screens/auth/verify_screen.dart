@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 import '../../core/theme/colors.dart';
 import '../../models/user.dart';
+import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 
 class VerifyScreen extends ConsumerStatefulWidget {
@@ -88,13 +90,27 @@ class _VerifyScreenState extends ConsumerState<VerifyScreen> {
     });
   }
 
-  void _submitUpload() {
+  Future<void> _submitUpload() async {
     if (_pickedFile == null) return;
     setState(() => _loading = true);
-    // TODO: Upload to Cloudinary + submit to API for admin review
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    try {
+      final api = ref.read(apiClientProvider);
+      final formData = FormData.fromMap({
+        'photo': await MultipartFile.fromFile(_pickedFile!.path, filename: 'student_id.jpg'),
+      });
+      await api.post('/students/verify', data: formData);
       if (mounted) setState(() { _loading = false; _step = 5; });
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Upload failed. Please try again.'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    }
   }
 
   InputDecoration _softInput(String hint, {IconData? icon}) {

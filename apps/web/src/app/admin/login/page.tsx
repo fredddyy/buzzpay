@@ -18,13 +18,15 @@ export default function AdminLoginPage() {
     try {
       const res = await api.post("/auth/login", { email, password });
       const { tokens, user } = res.data.data;
-      if (user.role !== "ADMIN") {
-        setError("Admin access only.");
+      if (user.role !== "ADMIN" && user.role !== "VENDOR") {
+        setError("Admin or vendor access only.");
         setLoading(false);
         return;
       }
       setTokens(tokens.accessToken, tokens.refreshToken);
-      router.replace("/admin");
+      localStorage.setItem("vendor_name", user.fullName || "Vendor");
+      localStorage.setItem("user_role", user.role);
+      router.replace(user.role === "VENDOR" ? "/scanner" : "/admin");
     } catch {
       setError("Invalid email or password");
     }

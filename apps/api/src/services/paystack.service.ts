@@ -17,6 +17,7 @@ export const paystackService = {
     reference: string;
     callbackUrl?: string;
     metadata?: Record<string, any>;
+    channels?: string[];
   }) {
     const response = await paystackApi.post('/transaction/initialize', {
       email: params.email,
@@ -24,12 +25,23 @@ export const paystackService = {
       reference: params.reference,
       callback_url: params.callbackUrl,
       metadata: params.metadata,
+      channels: params.channels ?? ['bank_transfer'],
     });
     return response.data.data as {
       authorization_url: string;
       access_code: string;
       reference: string;
     };
+  },
+
+  /** Fetch transfer details (account number, bank) after initialization */
+  async getTransferDetails(accessCode: string) {
+    try {
+      const response = await paystackApi.get(`/transaction/charge/${accessCode}`);
+      return response.data.data;
+    } catch {
+      return null;
+    }
   },
 
   async verifyTransaction(reference: string) {

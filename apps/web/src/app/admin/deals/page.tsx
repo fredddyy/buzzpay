@@ -39,9 +39,10 @@ const CATEGORY_FILTERS = [
   ...CATEGORIES.map(c => ({ label: c.charAt(0) + c.slice(1).toLowerCase(), value: c })),
 ];
 const STATUS_FILTERS = [
+  { label: "Live", value: "active" },
+  { label: "Draft", value: "draft" },
+  { label: "Expired", value: "expired" },
   { label: "All", value: "" },
-  { label: "Active", value: "active" },
-  { label: "Inactive", value: "inactive" },
 ];
 
 export default function DealsPage() {
@@ -51,7 +52,7 @@ export default function DealsPage() {
   const [modalDeal, setModalDeal] = useState<Deal | null | "new">(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("active");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
 
@@ -126,6 +127,12 @@ export default function DealsPage() {
 
   function fmt(kobo: number) { return `₦${(kobo / 100).toLocaleString("en-NG")}`; }
   function stockPct(d: Deal) { return d.totalQuantity > 0 ? d.remainingQty / d.totalQuantity : 1; }
+  function dealStatus(d: Deal): { label: string; type: "active" | "draft" | "expired" } {
+    if (!d.isActive) return { label: "Draft", type: "draft" };
+    if (new Date(d.expiresAt) <= new Date()) return { label: "Expired", type: "expired" };
+    if (d.remainingQty <= 0) return { label: "Sold Out", type: "expired" };
+    return { label: "Active", type: "active" };
+  }
 
   function toggleCheck(e: React.MouseEvent, id: string) {
     e.stopPropagation();
@@ -147,7 +154,26 @@ export default function DealsPage() {
 
   async function deleteDeal(e: React.MouseEvent, id: string) {
     e.stopPropagation();
-    if (!confirm('Delete this deal permanently?')) return;
+    const deal = deals.find(d => d.id === id);
+    if (!deal) return;
+
+    const s = dealStatus(deal);
+    if (s.type === "active") {
+      // Live deal — deactivate instead of delete
+      if (!confirm('This deal is live. Deactivate it instead? (Students will no longer see it)')) return;
+      setDeals(prev => prev.map(d => d.id === id ? { ...d, isActive: false } : d));
+      try { await api.put(`/admin/deals/${id}/toggle`); } catch {}
+      return;
+    }
+    if (s.type === "expired") {
+      // Expired deal — just hide from list, don't delete (has transaction history)
+      if (!confirm('Archive this expired deal? It will be deactivated but transaction history is preserved.')) return;
+      setDeals(prev => prev.map(d => d.id === id ? { ...d, isActive: false } : d));
+      try { await api.put(`/admin/deals/${id}/toggle`); } catch {}
+      return;
+    }
+    // Draft deal — can delete
+    if (!confirm('Delete this draft deal?')) return;
     setDeals(prev => prev.filter(d => d.id !== id));
     try { await api.delete(`/admin/deals/${id}`); } catch {}
   }
@@ -333,15 +359,22 @@ export default function DealsPage() {
                 </button>
               </div>
               <div className="flex justify-end">
-                <button onClick={(e) => toggleActive(e, d.id)}
-                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors"
-                  style={{
-                    background: d.isActive ? "var(--color-success-surface)" : "var(--color-error-surface)",
-                    color: d.isActive ? "var(--color-success)" : "var(--color-error)",
-                    border: `1px solid ${d.isActive ? "var(--color-success-border)" : "var(--color-error-border)"}`,
-                  }}>
-                  {d.isActive ? "Active" : "Inactive"}
-                </button>
+                {(() => {
+                  const s = dealStatus(d);
+                  const colors = {
+                    active: { bg: "var(--color-success-surface)", fg: "var(--color-success)", border: "var(--color-success-border)" },
+                    draft: { bg: "#FFF3E0", fg: "#E65100", border: "#FFCC80" },
+                    expired: { bg: "var(--color-border)", fg: "var(--color-text-muted)", border: "var(--color-border)" },
+                  };
+                  const c = colors[s.type];
+                  return (
+                    <button onClick={(e) => toggleActive(e, d.id)}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors"
+                      style={{ background: c.bg, color: c.fg, border: `1px solid ${c.border}` }}>
+                      {s.label}
+                    </button>
+                  );
+                })()}
                 <button onClick={(e) => deleteDeal(e, d.id)}
                   className="p-1 rounded opacity-30 hover:opacity-100 transition-opacity"
                   style={{ color: "var(--color-error)" }} title="Delete deal">

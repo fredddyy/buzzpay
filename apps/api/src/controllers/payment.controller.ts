@@ -9,7 +9,22 @@ export const paymentController = {
     res.status(201).json({ success: true, data: result });
   },
 
+  async cartCheckout(req: Request, res: Response) {
+    const { vendorId, items } = req.body;
+    if (!vendorId || !items || !Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ success: false, message: 'vendorId and items[] required' });
+      return;
+    }
+    const result = await paymentService.cartCheckout(req.user!.userId, vendorId, items);
+    res.status(201).json({ success: true, data: result });
+  },
+
   async verify(req: Request, res: Response) {
+    const result = await paymentService.verifyPayment(req.params.reference);
+    res.json({ success: true, data: result });
+  },
+
+  async pollStatus(req: Request, res: Response) {
     const result = await paymentService.verifyPayment(req.params.reference);
     res.json({ success: true, data: result });
   },

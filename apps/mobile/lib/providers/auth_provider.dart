@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/mock_data.dart';
 import '../core/services/api_client.dart';
+import '../core/services/push_service.dart';
 import '../models/user.dart';
 import 'api_provider.dart';
 
@@ -76,10 +78,20 @@ class AuthNotifier extends Notifier<AuthState> {
         status: AuthStatus.authenticated,
         user: User.fromJson(userData),
       );
+      _registerFcmToken();
     } catch (_) {
       // Token might be expired, but don't log out — refresh will handle it
       state = state.copyWith(status: AuthStatus.authenticated);
     }
+  }
+
+  Future<void> _registerFcmToken() async {
+    final fcmToken = PushService().token;
+    if (fcmToken == null) return;
+    try {
+      await _api.post('/users/fcm-token', data: {'token': fcmToken});
+      debugPrint('[FCM] Token registered with API');
+    } catch (_) {}
   }
 
   Future<void> signup({
@@ -90,6 +102,22 @@ class AuthNotifier extends Notifier<AuthState> {
     required String university,
   }) async {
     state = state.copyWith(status: AuthStatus.loading, error: null);
+
+    if (useMockData) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: User(
+          id: 'mock_user',
+          email: email,
+          fullName: fullName,
+          role: 'STUDENT',
+          verificationStatus: 'PENDING',
+        ),
+      );
+      return;
+    }
+
     try {
       final response = await _api.post('/auth/signup', data: {
         'fullName': fullName,

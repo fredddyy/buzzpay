@@ -24,6 +24,7 @@ class DealDetailScreen extends ConsumerStatefulWidget {
 class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
   Deal? _deal;
   bool _loading = true;
+  bool _offline = false;
   int _qty = 1;
 
   @override
@@ -34,7 +35,7 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
 
   Future<void> _loadDeal() async {
     if (useMockData) {
-      final all = [...mockDeals, ...mockHappyHour];
+      final all = [...mockDeals, ...mockHappyHour, ...mockUpcoming];
       final match = all.where((d) => d.id == widget.dealId);
       setState(() {
         _deal = match.isNotEmpty ? match.first : null;
@@ -50,11 +51,22 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
         _loading = false;
       });
     } catch (_) {
-      setState(() => _loading = false);
+      setState(() { _loading = false; _offline = true; });
     }
   }
 
   void _handlePay(Deal deal) {
+    // Block purchase for upcoming/dropping-soon deals
+    if (deal.dealStatus == 'upcoming') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('This deal drops at ${deal.dailyStart ?? "soon"} — set a reminder!'),
+        backgroundColor: const Color(0xFFF57C00),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
+
     final isVerified = ref.read(authProvider).user?.isVerified ?? false;
     if (!isVerified) {
       VerifyGateSheet.show(
@@ -75,7 +87,37 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_deal == null) {
-      return Scaffold(appBar: AppBar(), body: const Center(child: Text('Deal not found')));
+      return Scaffold(
+        appBar: AppBar(),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(_offline ? Icons.wifi_off : Icons.search_off, size: 48, color: AppColors.textTertiary),
+                const SizedBox(height: 16),
+                Text(_offline ? 'You\'re offline' : 'Deal not found',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(_offline ? 'Check your connection and try again' : 'This deal may have expired',
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                if (_offline) ...[
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    onTap: () { setState(() { _loading = true; _offline = false; }); _loadDeal(); },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
+                      child: const Text('Retry', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     final deal = _deal!;

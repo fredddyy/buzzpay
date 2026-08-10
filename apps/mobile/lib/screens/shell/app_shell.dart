@@ -21,62 +21,75 @@ class AppShell extends StatelessWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      body: child,
-      extendBody: true,
-      bottomNavigationBar: Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding + 12),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppColors.card.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.06),
-                    blurRadius: 24,
-                    offset: const Offset(0, 4),
+      body: Stack(
+        children: [
+          // Page content
+          child,
+
+          // Floating nav bar
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: bottomPadding + 12,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 24,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _navItem(
-                    context: context,
-                    index: 0,
-                    current: currentIndex,
-                    icon: Image.asset('assets/icons/deals_outline.png', width: 22, height: 22),
-                    activeIcon: Image.asset('assets/icons/deals_filled.png', width: 22, height: 22),
-                    label: 'Deals',
-                    route: '/',
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _navItem(
+                        context: context,
+                        index: 0,
+                        current: currentIndex,
+                        icon: Image.asset('assets/icons/deals_outline.png', width: 22, height: 22,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.local_fire_department_outlined, size: 22, color: AppColors.textTertiary)),
+                        activeIcon: Image.asset('assets/icons/deals_filled.png', width: 22, height: 22,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.local_fire_department, size: 22, color: AppColors.primary)),
+                        label: 'Deals',
+                        route: '/',
+                      ),
+                      _navItem(
+                        context: context,
+                        index: 1,
+                        current: currentIndex,
+                        icon: Image.asset('assets/icons/ticket_outline.png', width: 22, height: 22,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.confirmation_number_outlined, size: 22, color: AppColors.textTertiary)),
+                        activeIcon: Image.asset('assets/icons/ticket_filled.png', width: 22, height: 22,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.confirmation_number, size: 22, color: AppColors.primary)),
+                        label: 'Vouchers',
+                        route: '/vouchers',
+                      ),
+                      _navItem(
+                        context: context,
+                        index: 2,
+                        current: currentIndex,
+                        icon: const Icon(Icons.person_outline, size: 22, color: AppColors.textTertiary),
+                        activeIcon: const Icon(Icons.person, size: 22, color: AppColors.primary),
+                        label: 'Profile',
+                        route: '/profile',
+                      ),
+                    ],
                   ),
-                  _navItem(
-                    context: context,
-                    index: 1,
-                    current: currentIndex,
-                    icon: Image.asset('assets/icons/ticket_outline.png', width: 22, height: 22),
-                    activeIcon: Image.asset('assets/icons/ticket_filled.png', width: 22, height: 22),
-                    label: 'Vouchers',
-                    route: '/vouchers',
-                  ),
-                  _navItem(
-                    context: context,
-                    index: 2,
-                    current: currentIndex,
-                    icon: const Icon(Icons.person_outline, size: 22, color: AppColors.textTertiary),
-                    activeIcon: const Icon(Icons.person, size: 22, color: AppColors.primary),
-                    label: 'Profile',
-                    route: '/profile',
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -102,7 +115,6 @@ class AppShell extends StatelessWidget {
           children: [
             isActive ? activeIcon : icon,
             const SizedBox(height: 4),
-            // Dot indicator for active
             if (isActive)
               Container(
                 width: 5,

@@ -17,6 +17,8 @@ import '../../screens/vouchers/voucher_detail_screen.dart';
 import '../../screens/vouchers/vouchers_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/vendor/vendor_profile_screen.dart';
+import '../../screens/cart/cart_screen.dart';
+import '../../screens/cart/cart_checkout_screen.dart';
 import '../../screens/shell/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -134,6 +136,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/vendor/:id',
         builder: (context, state) =>
             VendorProfileScreen(vendorId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/voucher/:id',
+        builder: (context, state) =>
+            VoucherDetailScreen(voucherId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/cart',
+        builder: (context, state) => const CartScreen(),
+      ),
+      GoRoute(
+        path: '/cart/checkout/:vendorId',
+        builder: (context, state) =>
+            CartCheckoutScreen(vendorId: state.pathParameters['vendorId']!),
       ),
     ],
   );

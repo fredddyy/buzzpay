@@ -29,15 +29,17 @@ export default function DashboardPage() {
 
   async function loadData() {
     try {
-      const res = await api.get("/vendor/redemptions");
-      setRedemptions(res.data.data || []);
+      const res = await api.get("/vendor/stats");
+      const data = res.data.data;
+      setRedemptions((data.recentScans || []).map((s: { id: string; dealTitle: string; studentName: string; amount: number; redeemedAt: string }) => ({
+        voucherId: s.id,
+        dealTitle: s.dealTitle,
+        studentName: s.studentName,
+        amount: s.amount,
+        redeemedAt: s.redeemedAt,
+      })));
     } catch {
-      // Mock data for demo
-      setRedemptions([
-        { voucherId: "1", dealTitle: "Jollof Rice + Chicken", studentName: "Tunde B.", amount: 180000, redeemedAt: new Date().toISOString() },
-        { voucherId: "2", dealTitle: "Shawarma Special", studentName: "Ada O.", amount: 150000, redeemedAt: new Date().toISOString() },
-        { voucherId: "3", dealTitle: "Iced Coffee + Pastry", studentName: "Chidi N.", amount: 100000, redeemedAt: new Date().toISOString() },
-      ]);
+      setRedemptions([]);
     }
     setLoading(false);
   }
@@ -56,9 +58,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--color-base)" }}>
       {/* Header */}
-      <div className="px-5 pt-6 pb-4 bg-white border-b border-gray-100">
+      <div className="px-5 pt-6 pb-4 max-w-3xl mx-auto w-full" style={{ background: "var(--color-surface)" }}>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-lg font-extrabold">{vendorName}</h1>
@@ -95,7 +97,7 @@ export default function DashboardPage() {
 
       {/* Redemption list */}
       <div className="flex-1 overflow-auto">
-        <div className="px-5 py-4">
+        <div className="px-5 py-4 max-w-3xl mx-auto w-full">
           <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
             Recent Redemptions
           </h2>
@@ -136,7 +138,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom nav */}
-      <div className="flex border-t border-gray-100 bg-white">
+      <div className="flex max-w-3xl mx-auto w-full" style={{ background: "var(--color-surface)", borderTop: "1px solid var(--color-border)" }}>
         <button
           onClick={() => router.push("/scanner")}
           className="flex-1 py-4 text-center text-xs font-semibold text-gray-400"
@@ -145,6 +147,18 @@ export default function DashboardPage() {
         </button>
         <button className="flex-1 py-4 text-center text-xs font-bold text-[#6C4FFF]">
           Dashboard
+        </button>
+        <button
+          onClick={() => router.push("/vendor/deals")}
+          className="flex-1 py-4 text-center text-xs font-semibold text-gray-400"
+        >
+          My Deals
+        </button>
+        <button
+          onClick={() => router.push("/vendor/profile")}
+          className="flex-1 py-4 text-center text-xs font-semibold text-gray-400"
+        >
+          Profile
         </button>
       </div>
     </div>

@@ -10,6 +10,9 @@ import routes from './routes/index.js';
 
 const app = express();
 
+// Trust proxy (Railway, Vercel, etc.)
+app.set('trust proxy', 1);
+
 // Capture raw body for Paystack webhook signature verification
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), (req, _res, next) => {
   (req as any).rawBody = req.body.toString();

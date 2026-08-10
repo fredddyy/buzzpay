@@ -52,6 +52,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  fcmToken String?   // Firebase Cloud Messaging device token
+
   student  Student?
   vendor   Vendor?
   payments Payment[]
@@ -100,6 +102,7 @@ model Vendor {
   updatedAt       DateTime @updatedAt
 
   deals        Deal[]
+  payments     Payment[]
   payouts      Payout[]
   loyaltyCards LoyaltyCard[]
   qrCodes      VendorQrCode[]
@@ -137,8 +140,9 @@ model Deal {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  vouchers Voucher[]
-  payments Payment[]
+  vouchers   Voucher[]
+  payments   Payment[]
+  orderItems OrderItem[]
 
   @@index([category, isActive])
   @@index([vendorId])
@@ -170,8 +174,10 @@ model Voucher {
   student        Student       @relation(fields: [studentId], references: [id])
   dealId         String
   deal           Deal          @relation(fields: [dealId], references: [id])
-  paymentId      String        @unique
+  paymentId      String
   payment        Payment       @relation(fields: [paymentId], references: [id])
+  orderItemId    String?
+  orderItem      OrderItem?    @relation(fields: [orderItemId], references: [id])
   code           String        @unique
   qrData         String        @unique
   qrSecret       String?       // HMAC secret for rotating QR codes
@@ -187,14 +193,18 @@ model Voucher {
   @@index([status, expiresAt])
   @@index([dealId, status])      // vendor redemption lookups
   @@index([studentId, createdAt]) // student voucher history
+  @@index([paymentId])           // multiple vouchers per payment
+  @@index([orderItemId])
 }
 
 model Payment {
   id                 String        @id @default(cuid())
   userId             String
   user               User          @relation(fields: [userId], references: [id])
-  dealId             String
-  deal               Deal          @relation(fields: [dealId], references: [id])
+  dealId             String?       // legacy single-deal payments (nullable for cart payments)
+  deal               Deal?         @relation(fields: [dealId], references: [id])
+  vendorId           String?       // cart payments: which vendor this payment is for
+  vendor             Vendor?       @relation(fields: [vendorId], references: [id])
   amount             Int
   commission         Int
   vendorAmount       Int
@@ -206,7 +216,8 @@ model Payment {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  voucher Voucher?
+  vouchers   Voucher[]
+  orderItems OrderItem[]
 
   @@index([userId])
   @@index([paystackReference])
@@ -214,6 +225,24 @@ model Payment {
   @@index([dealId, status])        // deal revenue aggregation
   @@index([userId, dealId, createdAt]) // per-user daily limit check
   @@index([status, createdAt])     // admin transaction listing
+  @@index([vendorId])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+  dealId    String
+  deal      Deal     @relation(fields: [dealId], references: [id])
+  quantity  Int      @default(1)
+  unitPrice Int      // studentPrice at time of purchase (kobo)
+  subtotal  Int      // unitPrice * quantity (kobo)
+  createdAt DateTime @default(now())
+
+  vouchers Voucher[]
+
+  @@index([paymentId])
+  @@index([dealId])
 }
 
 model Payout {

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/mock_data.dart';
+import '../../core/services/qr_totp.dart';
 import '../../core/theme/colors.dart';
 import '../../models/voucher.dart';
 import '../../providers/api_provider.dart';
@@ -22,8 +23,11 @@ class _VoucherDetailScreenState extends ConsumerState<VoucherDetailScreen> {
   Voucher? _voucher;
   bool _loading = true;
   Timer? _timer;
+  Timer? _qrTimer;
   Duration _remaining = Duration.zero;
   double? _originalBrightness;
+  String _qrPayload = '';
+  int _qrSecondsLeft = 0;
 
   @override
   void initState() {
@@ -35,6 +39,7 @@ class _VoucherDetailScreenState extends ConsumerState<VoucherDetailScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _qrTimer?.cancel();
     _restoreBrightness();
     super.dispose();
   }
@@ -60,7 +65,7 @@ class _VoucherDetailScreenState extends ConsumerState<VoucherDetailScreen> {
         _loading = false;
         if (_voucher != null) _remaining = _voucher!.timeRemaining;
       });
-      if (_voucher != null) _startCountdown();
+      if (_voucher != null) { _startCountdown(); _startRotatingQr(); }
       return;
     }
     try {
@@ -73,9 +78,37 @@ class _VoucherDetailScreenState extends ConsumerState<VoucherDetailScreen> {
         _remaining = voucher.timeRemaining;
       });
       _startCountdown();
+      _startRotatingQr();
     } catch (_) {
       setState(() => _loading = false);
     }
+  }
+
+  void _startRotatingQr() {
+    final voucher = _voucher;
+    if (voucher == null || voucher.qrSecret == null) {
+      // No secret — use static QR
+      _qrPayload = voucher?.qrData ?? '';
+      return;
+    }
+    // Generate initial payload
+    _refreshQrPayload();
+    // Refresh every second to update countdown, regenerate every 60s
+    _qrTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _qrSecondsLeft = QrTotp.secondsUntilExpiry();
+        if (_qrSecondsLeft <= 1) _refreshQrPayload();
+      });
+    });
+  }
+
+  void _refreshQrPayload() {
+    final voucher = _voucher!;
+    setState(() {
+      _qrPayload = QrTotp.buildPayload(voucher.id, voucher.qrSecret!);
+      _qrSecondsLeft = QrTotp.secondsUntilExpiry();
+    });
   }
 
   void _startCountdown() {
@@ -255,12 +288,41 @@ class _VoucherDetailScreenState extends ConsumerState<VoucherDetailScreen> {
               child: Column(
                 children: [
                   QrImageView(
-                    data: voucher.qrData,
+                    data: _qrPayload.isNotEmpty ? _qrPayload : voucher.qrData,
                     version: QrVersions.auto,
                     size: 200,
                     backgroundColor: Colors.white,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  if (voucher.qrSecret != null) ...[
+                    // Rotating QR indicator
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.autorenew, size: 14, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Text('Rotating QR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _qrSecondsLeft < 10
+                                ? AppColors.danger.withValues(alpha: 0.1)
+                                : AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${_qrSecondsLeft}s',
+                            style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700, fontFamily: 'monospace',
+                              color: _qrSecondsLeft < 10 ? AppColors.danger : AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   const Text(
                     'Show this QR to the vendor',
                     style: TextStyle(

@@ -176,7 +176,10 @@ class DealsNotifier extends Notifier<DealsState> {
   }
 
   Future<void> loadCollections() async {
-    if (useMockData) return;
+    if (useMockData) {
+      state = state.copyWith(collections: mockCollections);
+      return;
+    }
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.get('/deals/collections');
@@ -190,7 +193,10 @@ class DealsNotifier extends Notifier<DealsState> {
   }
 
   Future<void> loadUpcoming() async {
-    if (useMockData) return;
+    if (useMockData) {
+      state = state.copyWith(upcoming: mockUpcoming);
+      return;
+    }
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.get('/deals/upcoming');
@@ -204,7 +210,10 @@ class DealsNotifier extends Notifier<DealsState> {
   }
 
   Future<void> loadTrendingVendors() async {
-    if (useMockData) return;
+    if (useMockData) {
+      state = state.copyWith(trendingVendors: mockTrendingVendors);
+      return;
+    }
     try {
       final api = ref.read(apiClientProvider);
       final response = await api.get('/vendors/trending');

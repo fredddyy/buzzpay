@@ -17,7 +17,15 @@ export const voucherRepository = {
   },
 
   async findByPaymentId(paymentId: string) {
-    return prisma.voucher.findUnique({ where: { paymentId } });
+    return prisma.voucher.findFirst({ where: { paymentId } });
+  },
+
+  async findAllByPaymentId(paymentId: string) {
+    return prisma.voucher.findMany({ where: { paymentId } });
+  },
+
+  async countByPaymentId(paymentId: string) {
+    return prisma.voucher.count({ where: { paymentId } });
   },
 
   async findByQrData(qrData: string) {

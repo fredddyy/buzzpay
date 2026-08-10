@@ -73,8 +73,21 @@ export const adminController = {
         ];
       }
       if (category) where.category = category;
-      if (status === 'active') where.isActive = true;
-      else if (status === 'inactive') where.isActive = false;
+      if (status === 'active') {
+        where.isActive = true;
+        where.expiresAt = { gt: new Date() };
+        where.remainingQty = { gt: 0 };
+      } else if (status === 'draft') {
+        where.isActive = false;
+      } else if (status === 'expired') {
+        where.OR = [
+          { expiresAt: { lte: new Date() } },
+          { remainingQty: { lte: 0 } },
+        ];
+        where.isActive = true;
+      } else if (status === 'inactive') {
+        where.isActive = false;
+      }
 
       const [deals, total] = await Promise.all([
         prisma.deal.findMany({
@@ -121,7 +134,7 @@ export const adminController = {
 
   async createDeal(req: Request, res: Response, next: NextFunction) {
     try {
-      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess, dailyStart, dailyEnd, activeDays, featuredSection } = req.body;
+      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, isFeatured, guestAccess, dailyStart, dailyEnd, activeDays, featuredSection, previewStart, isRecurring, tags } = req.body;
 
       const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
       if (!vendor) throw new AppError(404, 'Vendor not found');
@@ -547,6 +560,7 @@ export const adminController = {
           include: {
             user: { select: { fullName: true } },
             deal: { select: { title: true } },
+            orderItems: { select: { deal: { select: { title: true } }, quantity: true } },
           },
           orderBy: { createdAt: 'desc' },
           skip,
@@ -566,6 +580,7 @@ export const adminController = {
         createdAt: p.createdAt.toISOString(),
         user: p.user,
         deal: p.deal,
+        orderItems: (p as any).orderItems?.map((oi: any) => ({ title: oi.deal?.title, quantity: oi.quantity })),
       }));
 
       res.json({ success: true, data: mapped, meta: paginationMeta(total, page, limit) });

@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseConfig {
   static const String url = 'https://gbhoekuodlbjgczajgrw.supabase.co';
   static const String anonKey = 'sb_publishable_SLsfOk9rCcMmDAZDbcDIeA_zdYWt19G';
-  static bool get isConfigured => url.isNotEmpty && anonKey.isNotEmpty;
+  static bool get isConfigured => false; // Disabled until Supabase project is set up
 }
 
 class RealtimeDeals {

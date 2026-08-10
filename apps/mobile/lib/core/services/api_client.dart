@@ -3,8 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../mock_data.dart';
 
 class ApiClient {
-  // For emulator: 10.0.2.2 | For physical device: use your machine IP (e.g. 172.16.10.140)
-  static const _baseUrl = 'http://10.0.2.2:3000/api';
+  // Railway production API
+  static const _baseUrl = 'https://api-production-2eb0.up.railway.app/api';
   static const _keyAccess = 'access_token';
   static const _keyRefresh = 'refresh_token';
 
