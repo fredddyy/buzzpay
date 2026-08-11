@@ -54,6 +54,28 @@ export const paystackService = {
     };
   },
 
+  async createTransferRecipient(accountNumber: string, bankCode: string, name: string) {
+    const response = await paystackApi.post('/transferrecipient', {
+      type: 'nuban',
+      name,
+      account_number: accountNumber,
+      bank_code: bankCode,
+      currency: 'NGN',
+    });
+    return response.data.data as { recipient_code: string };
+  },
+
+  async initiateTransfer(amount: number, recipientCode: string, reference: string) {
+    const response = await paystackApi.post('/transfer', {
+      source: 'balance',
+      amount,
+      recipient: recipientCode,
+      reference,
+      reason: 'BuzzPay vendor payout',
+    });
+    return response.data.data as { transfer_code: string; id: number; status: string };
+  },
+
   verifyWebhookSignature(body: string, signature: string): boolean {
     const hash = crypto
       .createHmac('sha512', env.PAYSTACK_SECRET_KEY)

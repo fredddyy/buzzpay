@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../core/theme/colors.dart';
 import '../models/deal.dart';
 import 'verify_gate_sheet.dart';
@@ -107,12 +108,36 @@ class DealCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // Heart (save vendor) — top right when open
+                    // Share button — top right when open
                     if (!isClosed)
                       Positioned(
                         top: 8,
                         right: 8,
-                        child: _AnimatedHeart(vendorName: deal.vendorName),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              final savings = (deal.originalPrice - deal.studentPrice) ~/ 100;
+                              final price = deal.studentPrice ~/ 100;
+                              SharePlus.instance.share(
+                                ShareParams(
+                                  text: '🔥 ${deal.title} for ₦$price (save ₦$savings!) at ${deal.vendorName}\n\n'
+                                      'Grab it on BuzzPay before it\'s gone! 📲 https://buzzpay.ng',
+                                ),
+                              );
+                            },
+                            customBorder: const CircleBorder(),
+                            child: Container(
+                              width: 32, height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.share, color: Colors.white, size: 15),
+                            ),
+                          ),
+                        ),
                       ),
                     // CLOSED overlay
                     if (isClosed)

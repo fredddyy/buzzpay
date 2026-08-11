@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/mock_data.dart';
 import '../../core/theme/colors.dart';
 import '../../models/deal.dart';
@@ -79,6 +80,18 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
     } else {
       context.push('/checkout/${deal.id}', extra: {'qty': _qty});
     }
+  }
+
+  void _shareDeal(Deal deal) {
+    final savings = (deal.originalPrice - deal.studentPrice) ~/ 100;
+    final price = deal.studentPrice ~/ 100;
+    SharePlus.instance.share(
+      ShareParams(
+        text: '🔥 ${deal.title} for just ₦$price (save ₦$savings!) at ${deal.vendorName}\n\n'
+            'Only ${deal.remainingQty} left — grab it on BuzzPay before it\'s gone!\n\n'
+            '📲 Download BuzzPay: https://buzzpay.ng',
+      ),
+    );
   }
 
   @override
@@ -182,6 +195,28 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Share button
+                    Positioned(
+                      top: MediaQuery.of(context).padding.top + 8,
+                      right: 60,
+                      child: GestureDetector(
+                        onTap: () => _shareDeal(deal),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              width: 40, height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.share, color: Colors.white, size: 18),
                             ),
                           ),
                         ),

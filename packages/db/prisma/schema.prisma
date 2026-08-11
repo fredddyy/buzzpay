@@ -104,6 +104,7 @@ model Vendor {
   deals        Deal[]
   payments     Payment[]
   payouts      Payout[]
+  bankAccount  VendorBankAccount?
   loyaltyCards LoyaltyCard[]
   qrCodes      VendorQrCode[]
 
@@ -218,6 +219,7 @@ model Payment {
 
   vouchers   Voucher[]
   orderItems OrderItem[]
+  payoutItems PayoutItem[]
 
   @@index([userId])
   @@index([paystackReference])
@@ -246,20 +248,54 @@ model OrderItem {
 }
 
 model Payout {
-  id                   String   @id @default(cuid())
+  id                   String       @id @default(cuid())
   vendorId             String
-  vendor               Vendor   @relation(fields: [vendorId], references: [id])
-  amount               Int
+  vendor               Vendor       @relation(fields: [vendorId], references: [id])
+  amount               Int          // kobo — total vendor payout
   periodStart          DateTime
   periodEnd            DateTime
   voucherCount         Int
-  status               String   @default("PENDING")
+  status               String       @default("PENDING") // PENDING, PROCESSING, PAID, FAILED
   paystackTransferCode String?
+  paystackTransferId   String?      @unique
+  reference            String?      @unique // our payout reference
   paidAt               DateTime?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  failureReason        String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  items PayoutItem[]
 
   @@index([vendorId, status])
+  @@index([status])
+}
+
+model PayoutItem {
+  id        String   @id @default(cuid())
+  payoutId  String
+  payout    Payout   @relation(fields: [payoutId], references: [id])
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+  amount    Int      // vendorAmount from this payment
+  createdAt DateTime @default(now())
+
+  @@unique([payoutId, paymentId])
+  @@index([paymentId])
+}
+
+model VendorBankAccount {
+  id            String    @id @default(cuid())
+  vendorId      String    @unique
+  vendor        Vendor    @relation(fields: [vendorId], references: [id])
+  accountNumber String
+  bankCode      String
+  bankName      String
+  accountName   String
+  recipientCode String?   // Paystack transfer recipient code
+  isVerified    Boolean   @default(false)
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model OTP {

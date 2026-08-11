@@ -155,6 +155,12 @@ export default function DashboardPage() {
           My Deals
         </button>
         <button
+          onClick={() => router.push("/vendor/payouts")}
+          className="flex-1 py-4 text-center text-xs font-semibold text-gray-400"
+        >
+          Payouts
+        </button>
+        <button
           onClick={() => router.push("/vendor/profile")}
           className="flex-1 py-4 text-center text-xs font-semibold text-gray-400"
         >

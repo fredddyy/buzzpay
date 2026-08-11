@@ -120,6 +120,51 @@ router.patch('/vendor/profile', authenticate, async (req, res) => {
   }});
 });
 
+// Vendor bank account
+router.get('/vendor/bank-account', authenticate, async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, include: { vendor: { include: { bankAccount: true } } } });
+  if (!user?.vendor) { res.status(403).json({ success: false, message: 'Not a vendor' }); return; }
+  res.json({ success: true, data: user.vendor.bankAccount || null });
+});
+
+router.post('/vendor/bank-account', authenticate, async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, include: { vendor: true } });
+  if (!user?.vendor) { res.status(403).json({ success: false, message: 'Not a vendor' }); return; }
+  const { accountNumber, bankCode, bankName, accountName } = req.body;
+  if (!accountNumber || !bankCode || !bankName || !accountName) {
+    res.status(400).json({ success: false, message: 'accountNumber, bankCode, bankName, accountName required' }); return;
+  }
+  const account = await prisma.vendorBankAccount.upsert({
+    where: { vendorId: user.vendor.id },
+    create: { vendorId: user.vendor.id, accountNumber, bankCode, bankName, accountName },
+    update: { accountNumber, bankCode, bankName, accountName, isVerified: false, recipientCode: null },
+  });
+  res.json({ success: true, data: account });
+});
+
+// Vendor payout history
+import { payoutService } from '../services/payout.service.js';
+
+router.get('/vendor/payouts/pending', authenticate, async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, include: { vendor: { include: { bankAccount: true } } } });
+  if (!user?.vendor) { res.status(403).json({ success: false, message: 'Not a vendor' }); return; }
+  const { amount } = await payoutService.calculatePending(user.vendor.id);
+  const lastPayout = await prisma.payout.findFirst({ where: { vendorId: user.vendor.id, status: 'PAID' }, orderBy: { paidAt: 'desc' } });
+  res.json({ success: true, data: {
+    pendingAmount: amount,
+    lastPayoutAt: lastPayout?.paidAt ?? null,
+    bankAccountVerified: user.vendor.bankAccount?.isVerified ?? false,
+    nextPayoutWindow: 'Friday 10:00 WAT',
+  }});
+});
+
+router.get('/vendor/payouts/history', authenticate, async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, include: { vendor: true } });
+  if (!user?.vendor) { res.status(403).json({ success: false, message: 'Not a vendor' }); return; }
+  const result = await payoutService.vendorHistory(user.vendor.id);
+  res.json({ success: true, data: result });
+});
+
 router.get('/vendor/my-deals', authenticate, vendorController.listMyDeals);
 router.post('/vendor/deals', authenticate, vendorController.createDeal);
 router.put('/vendor/deals/:id', authenticate, vendorController.updateDeal);

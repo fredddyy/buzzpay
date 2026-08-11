@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { paymentService } from '../services/payment.service.js';
 import { paystackService } from '../services/paystack.service.js';
+import { payoutService } from '../services/payout.service.js';
 
 export const paymentController = {
   async initialize(req: Request, res: Response) {
@@ -39,7 +40,15 @@ export const paymentController = {
     }
 
     const { event, data } = req.body;
-    await paymentService.handleWebhook(event, data);
+
+    // Handle payment events
+    if (event.startsWith('charge.')) {
+      await paymentService.handleWebhook(event, data);
+    }
+    // Handle transfer events (payouts)
+    if (event.startsWith('transfer.')) {
+      await payoutService.handleTransferWebhook(event, data);
+    }
 
     res.sendStatus(200);
   },
