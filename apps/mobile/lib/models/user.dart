@@ -4,6 +4,7 @@ class User {
   final String fullName;
   final String role;
   final String? verificationStatus;
+  final String? university;
 
   User({
     required this.id,
@@ -11,6 +12,7 @@ class User {
     required this.fullName,
     required this.role,
     this.verificationStatus,
+    this.university,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -19,6 +21,7 @@ class User {
         fullName: json['fullName'] as String,
         role: json['role'] as String,
         verificationStatus: json['verificationStatus'] as String?,
+        university: json['university'] as String?,
       );
 
   bool get isVerified => verificationStatus == 'APPROVED';

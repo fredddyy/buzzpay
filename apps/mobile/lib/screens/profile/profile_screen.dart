@@ -1,23 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/colors.dart';
+import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/vouchers_provider.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  int _totalSaved = 0;
+  int _totalSpent = 0;
+  int _dealCount = 0;
+  String? _favoriteVendor;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavings();
+  }
+
+  Future<void> _loadSavings() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/users/savings');
+      final data = response.data['data'];
+      if (mounted) {
+        setState(() {
+          _totalSaved = data['totalSaved'] as int? ?? 0;
+          _totalSpent = data['totalSpent'] as int? ?? 0;
+          _dealCount = data['dealCount'] as int? ?? 0;
+          _favoriteVendor = (data['favoriteVendor'] as Map<String, dynamic>?)?['name'] as String?;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _shareSavings() {
+    final saved = _totalSaved ~/ 100;
+    final deals = _dealCount;
+    SharePlus.instance.share(
+      ShareParams(
+        text: '🎓 I\'ve saved ₦$saved on $deals deals with BuzzPay!\n\n'
+            '${_favoriteVendor != null ? 'My go-to: $_favoriteVendor 🔥\n\n' : ''}'
+            'Stop paying full price on campus — download BuzzPay 📲 https://buzzpay.ng',
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final user = auth.user;
     final isVerified = user?.isVerified == true;
     final firstName = (user?.fullName ?? 'Student').split(' ').first;
-    final vState = ref.watch(vouchersProvider);
-    final redeemedCount = vState.vouchers.where((v) => v.isRedeemed).length;
-    final activeCount = vState.vouchers.where((v) => v.isActive).length;
-    final totalDeals = redeemedCount + activeCount;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -97,7 +140,7 @@ class ProfileScreen extends ConsumerWidget {
                     Text(firstName,
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
-                    Text('University of Lagos',
+                    Text(user?.university ?? 'University of Lagos',
                         style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
 
                     if (!isVerified) ...[
@@ -125,13 +168,13 @@ class ProfileScreen extends ConsumerWidget {
 
                     const SizedBox(height: 20),
 
-                    // Stats — floating cards with 3D accents
+                    // Stats — real savings data
                     Row(
                       children: [
                         Expanded(
                           child: _statCard(
                             label: 'Total Saved',
-                            value: totalDeals > 0 ? '₦${(totalDeals * 500).toString()}' : '₦0',
+                            value: '₦${(_totalSaved ~/ 100).toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}',
                             asset: 'assets/icons/coins_3d.png',
                           ),
                         ),
@@ -139,12 +182,66 @@ class ProfileScreen extends ConsumerWidget {
                         Expanded(
                           child: _statCard(
                             label: 'Deals Claimed',
-                            value: '$totalDeals',
+                            value: '$_dealCount',
                             asset: 'assets/icons/flame_3d.png',
                           ),
                         ),
                       ],
                     ),
+                    if (_totalSaved > 0) ...[
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: _shareSavings,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.share, size: 16, color: AppColors.success),
+                              const SizedBox(width: 8),
+                              Text('Share your savings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (_favoriteVendor != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(_favoriteVendor![0], style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('$_favoriteVendor', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 6),
+                            const Text('🔥', style: TextStyle(fontSize: 12)),
+                            const SizedBox(width: 4),
+                            Text('Go-to vendor', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -157,7 +254,11 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
 
                     // Invite — gradient gift card
-                    Container(
+                    GestureDetector(
+                      onTap: () => SharePlus.instance.share(ShareParams(
+                        text: 'I\'m saving money on campus deals with BuzzPay! 🔥\n\nDownload it and stop paying full price 📲 https://buzzpay.ng',
+                      )),
+                      child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -192,16 +293,28 @@ class ProfileScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    ),
 
                     const SizedBox(height: 20),
 
-                    // Menu — borderless, more breathing room
+                    // Menu
                     _menuItem(Icons.receipt_long_outlined, 'Purchase History',
                         onTap: () => context.go('/vouchers')),
-                    _menuItem(Icons.notifications_none, 'Notifications', onTap: () {}),
-                    _menuItem(Icons.headset_mic_outlined, 'Help & Support', onTap: () {}),
-                    _menuItem(Icons.info_outline, 'About BuzzPay', onTap: () {}),
-                    _menuItem(Icons.shield_outlined, 'Privacy & Terms', onTap: () {}),
+                    _menuItem(Icons.notifications_none, 'Notifications',
+                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: const Text('Notifications coming soon!'), behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))))),
+                    _menuItem(Icons.headset_mic_outlined, 'Help & Support',
+                        onTap: () => launchUrl(Uri.parse('https://wa.me/2349045701943?text=Hi%20BuzzPay%20support'))),
+                    _menuItem(Icons.info_outline, 'About BuzzPay',
+                        onTap: () => showAboutDialog(
+                          context: context,
+                          applicationName: 'BuzzPay',
+                          applicationVersion: '1.0.0',
+                          children: [const Text('Student deals, instantly. Pay less because you\'re a student.')],
+                        )),
+                    _menuItem(Icons.shield_outlined, 'Privacy & Terms',
+                        onTap: () => launchUrl(Uri.parse('https://buzzpay.ng/privacy'))),
 
                     const SizedBox(height: 24),
 

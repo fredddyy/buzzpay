@@ -24,9 +24,16 @@ export default function ScannerPage() {
   const [manualCode, setManualCode] = useState("");
   const [showManual, setShowManual] = useState(false);
   const [manualLoading, setManualLoading] = useState(false);
+  const [offlineQueue, setOfflineQueue] = useState<string[]>([]);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     setVendorName(localStorage.getItem("vendor_name") || "Vendor");
+    // Load offline queue
+    const queue = JSON.parse(localStorage.getItem("offline_scans") || "[]");
+    setOfflineQueue(queue);
+    // Sync if online
+    if (queue.length > 0 && navigator.onLine) syncOfflineQueue(queue);
   }, []);
 
   useEffect(() => {
@@ -88,13 +95,26 @@ export default function ScannerPage() {
   }
 
   async function redeemVoucher(qrData: string) {
+    // If offline, queue the scan
+    if (!navigator.onLine) {
+      const queue = JSON.parse(localStorage.getItem("offline_scans") || "[]");
+      queue.push(qrData);
+      localStorage.setItem("offline_scans", JSON.stringify(queue));
+      setOfflineQueue(queue);
+      setResult({
+        success: true,
+        dealTitle: "Queued for sync",
+        studentName: "Offline mode",
+        amount: 0,
+      });
+      return;
+    }
+
     try {
       let res;
       if (qrData.startsWith("bp://")) {
-        // Rotating QR — bp://voucherId/hmacCode/window
         res = await api.post("/vouchers/redeem-rotating", { qrPayload: qrData });
       } else {
-        // Static QR (UUID) or manual code
         res = await api.post("/vouchers/redeem", { qrData });
       }
       const data = res.data.data;
@@ -110,6 +130,29 @@ export default function ScannerPage() {
         "Invalid voucher";
       setResult({ success: false, error: message });
     }
+  }
+
+  async function syncOfflineQueue(queue?: string[]) {
+    const scans = queue || JSON.parse(localStorage.getItem("offline_scans") || "[]");
+    if (scans.length === 0) return;
+    setSyncing(true);
+
+    const remaining: string[] = [];
+    for (const qrData of scans) {
+      try {
+        if (qrData.startsWith("bp://")) {
+          await api.post("/vouchers/redeem-rotating", { qrPayload: qrData });
+        } else {
+          await api.post("/vouchers/redeem", { qrData });
+        }
+      } catch {
+        remaining.push(qrData);
+      }
+    }
+
+    localStorage.setItem("offline_scans", JSON.stringify(remaining));
+    setOfflineQueue(remaining);
+    setSyncing(false);
   }
 
   async function handleManualSubmit() {
@@ -154,7 +197,7 @@ export default function ScannerPage() {
             className="px-3 py-2 rounded-xl text-xs font-semibold"
             style={{ background: "var(--color-border-light, #f3f3f6)", color: "var(--color-text-muted)" }}
           >
-            Today: {todayCount}
+            Today: {todayCount}{offlineQueue.length > 0 ? ` · ${offlineQueue.length} queued` : ""}
           </button>
         </div>
       </div>

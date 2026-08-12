@@ -110,6 +110,12 @@ export default function VendorProfilePage() {
               </div>
             )}
 
+            <button onClick={() => window.open('/api/vendor/qr-sticker', '_blank')}
+              className="w-full py-3 rounded-xl text-sm font-semibold"
+              style={{ background: "var(--color-base)", color: "var(--color-primary)", border: "1px solid var(--color-border)" }}>
+              🖨️ Print QR Sticker
+            </button>
+
             {saved && (
               <div className="px-3 py-2.5 rounded-xl text-[12px] font-semibold" style={{ background: "#E8F5E9", color: "#2E7D32" }}>
                 ✓ Profile updated successfully

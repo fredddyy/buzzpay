@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { dealService } from '../services/deal.service.js';
+import { analyticsService } from '../services/analytics.service.js';
 
 export const dealController = {
   async list(_req: Request, res: Response, next: NextFunction) {
@@ -65,6 +66,7 @@ export const dealController = {
   async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const deal = await dealService.getById(req.params.id);
+      analyticsService.track('deal_viewed', { userId: req.user?.userId, dealId: req.params.id });
       res.json({ success: true, data: deal });
     } catch (err) {
       next(err);

@@ -44,12 +44,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ];
 
   String? _selectedCategory;
+  String? _selectedCampus;
   bool _notifyEnabled = false;
+
+  static const _campuses = ['UNILAG', 'YABATECH', 'LASU', 'FUTA', 'OAU', 'UI', 'UNIPORT'];
   late final RealtimeDeals _realtime;
   final _scrollController = ScrollController();
-  static const _feedLimit = 10; // curated home feed limit
+  static const _feedLimit = 50; // show all deals
   Timer? _debounceTimer;
   Timer? _verificationPoller;
+  int _currentStreak = 0;
+  bool _purchasedToday = false;
 
   @override
   void initState() {
@@ -60,6 +65,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref.read(dealsProvider.notifier).loadUpcoming();
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
     });
+
+    // Load streak
+    _loadStreak();
 
     // Auto-poll verification status while PENDING
     _startVerificationPoller();
@@ -179,6 +187,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  void _showCampusPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, margin: const EdgeInsets.only(top: 12),
+              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Select Campus', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            ),
+            ..._campuses.map((campus) => ListTile(
+              leading: Icon(Icons.school_outlined, color: _selectedCampus == campus || (_selectedCampus == null && campus == (ref.read(authProvider).user?.university ?? 'UNILAG')) ? AppColors.primary : AppColors.textTertiary),
+              title: Text(campus, style: TextStyle(fontWeight: FontWeight.w600,
+                color: _selectedCampus == campus ? AppColors.primary : AppColors.text)),
+              trailing: _selectedCampus == campus || (_selectedCampus == null && campus == (ref.read(authProvider).user?.university ?? 'UNILAG'))
+                ? const Icon(Icons.check_circle, color: AppColors.primary, size: 20) : null,
+              onTap: () {
+                setState(() => _selectedCampus = campus);
+                Navigator.pop(context);
+                // TODO: Filter deals by campus when multi-campus API is ready
+              },
+            )),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadStreak() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/users/streak');
+      final data = response.data['data'];
+      if (mounted) {
+        setState(() {
+          _currentStreak = data['currentStreak'] as int? ?? 0;
+          _purchasedToday = data['purchasedToday'] as bool? ?? false;
+        });
+      }
+    } catch (_) {}
+  }
+
   void _startVerificationPoller() {
     final isVerified = ref.read(authProvider).user?.isVerified ?? false;
     if (isVerified) return; // Already verified, no need to poll
@@ -288,14 +347,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Icon(Icons.location_on_rounded, size: 16, color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          const Text(
-                            'UNILAG, Akoka',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                          GestureDetector(
+                            onTap: () => _showCampusPicker(context),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on_rounded, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _selectedCampus ?? authState.user?.university ?? 'UNILAG',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.textTertiary),
+                              ],
                             ),
                           ),
                           const Spacer(),
@@ -363,15 +431,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Row 2: greeting heading
-                      const Text(
-                        'What\'s the deal\ntoday? 👀',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF111111),
-                          height: 1.25,
-                        ),
+                      // Row 2: greeting + streak
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'What\'s the deal\ntoday? 👀',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF111111),
+                                height: 1.25,
+                              ),
+                            ),
+                          ),
+                          if (_currentStreak > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3E0),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('🔥', style: TextStyle(fontSize: 14)),
+                                  const SizedBox(width: 4),
+                                  Text('$_currentStreak', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFFE65100))),
+                                  if (!_purchasedToday)
+                                    const Text(' ·buy today!', style: TextStyle(fontSize: 9, color: Color(0xFFE65100))),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
@@ -425,52 +518,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
 
-              // ──── 1. CATEGORY PILLS ────
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 42,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: _categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final (value, label) = _categories[index];
-                      final isSelected = _selectedCategory == value;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() => _selectedCategory = value);
-                          ref.read(dealsProvider.notifier).setCategory(value);
+              // ──── 1. STICKY CATEGORY TABS ────
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickyTabDelegate(
+                  child: Container(
+                    color: AppColors.background,
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    child: SizedBox(
+                      height: 38,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: _categories.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final (value, label) = _categories[index];
+                          final isSelected = _selectedCategory == value;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() => _selectedCategory = value);
+                              ref.read(dealsProvider.notifier).setCategory(value);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.primary : AppColors.card,
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(
+                                  color: isSelected ? AppColors.primary : AppColors.border,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : AppColors.text,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          );
                         },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected ? AppColors.primary : AppColors.card,
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                              color: isSelected ? AppColors.primary : AppColors.border,
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : AppColors.text,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
               // ──── 2. ACTIVE VOUCHERS (conditional) ────
-              if (activeVouchers.isNotEmpty) ...[
+              if (activeVouchers.isNotEmpty && _selectedCategory == null) ...[
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -511,7 +611,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
 
               // ──── 3. HAPPY HOUR / LIVE DEALS ────
-              if (deals.happyHour.isNotEmpty) ...[
+              if (deals.happyHour.isNotEmpty && _selectedCategory == null) ...[
                 ...() {
                   final grouped = <String, List<Deal>>{};
                   for (final deal in deals.happyHour) {
@@ -1368,6 +1468,22 @@ class _UpcomingGroupCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StickyTabDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  _StickyTabDelegate({required this.child});
+
+  @override
+  double get minExtent => 54;
+  @override
+  double get maxExtent => 54;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+
+  @override
+  bool shouldRebuild(covariant _StickyTabDelegate oldDelegate) => true;
 }
 
 class _SearchOverlay extends ConsumerStatefulWidget {

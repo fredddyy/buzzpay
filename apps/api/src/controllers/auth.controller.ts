@@ -18,6 +18,7 @@ export const authController = {
     res.json({ success: true, data: {
       id: user.id, email: user.email, fullName: user.fullName, role: user.role,
       verificationStatus: user.student?.verificationStatus,
+      university: user.student?.university,
     }});
   },
 

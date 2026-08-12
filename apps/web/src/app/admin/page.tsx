@@ -13,6 +13,20 @@ interface Stats {
   totalTransactions: number;
   totalRevenue: number;
   redemptionRate: number;
+  signupsToday: number;
+  signupsThisWeek: number;
+  buyersThisWeek: number;
+  repeatBuyers: number;
+  firstPurchaseRate: number;
+  repeatRate: number;
+  topDeals: { dealId: string; title: string; vendor: string; purchases: number }[];
+  revenueToday: number;
+  revenueThisWeek: number;
+  revenueThisMonth: number;
+  avgOrderValue: number;
+  topVendors: { vendorId: string; name: string; revenue: number; sales: number }[];
+  deadDeals: number;
+  categoryRevenue: { category: string; revenue: number; sales: number }[];
 }
 
 export default function AdminOverview() {
@@ -64,17 +78,92 @@ export default function AdminOverview() {
           ))
         ) : (
           <>
-            <KPI label="Total Students" value={stats?.totalUsers ?? 0} color="primary" />
-            <KPI label="Verified" value={stats?.verifiedUsers ?? 0} color="success" bar={stats ? stats.verifiedUsers / stats.totalUsers : 0} />
-            <KPI label="Pending Review" value={stats?.pendingVerifications ?? 0} color="warning" urgent />
-            <KPI label="Active Vendors" value={stats?.totalVendors ?? 0} color="info" />
-            <KPI label="Active Deals" value={stats?.totalDeals ?? 0} color="primary" />
-            <KPI label="Transactions" value={stats?.totalTransactions.toLocaleString() ?? "0"} color="success" />
-            <KPI label="Revenue" value={fmt(stats?.totalRevenue ?? 0)} color="success" />
-            <KPI label="Redemption Rate" value={`${stats?.redemptionRate ?? 0}%`} color="info" bar={(stats?.redemptionRate ?? 0) / 100} />
+            <KPI label="Total Students" value={stats?.totalUsers ?? 0} color="primary" href="/admin/students" />
+            <KPI label="Verified" value={stats?.verifiedUsers ?? 0} color="success" bar={stats ? stats.verifiedUsers / stats.totalUsers : 0} href="/admin/students" />
+            <KPI label="Pending Review" value={stats?.pendingVerifications ?? 0} color="warning" urgent href="/admin/students" />
+            <KPI label="Active Vendors" value={stats?.totalVendors ?? 0} color="info" href="/admin/vendors" />
+            <KPI label="Active Deals" value={stats?.totalDeals ?? 0} color="primary" href="/admin/deals" />
+            <KPI label="Transactions" value={stats?.totalTransactions.toLocaleString() ?? "0"} color="success" href="/admin/transactions" />
+            <KPI label="Revenue" value={fmt(stats?.totalRevenue ?? 0)} color="success" href="/admin/transactions" />
+            <KPI label="Redemption Rate" value={`${stats?.redemptionRate ?? 0}%`} color="info" bar={(stats?.redemptionRate ?? 0) / 100} href="/admin/vouchers" />
           </>
         )}
       </div>
+
+      {/* Growth Metrics */}
+      {!loading && stats && (
+        <div className="mb-6">
+          <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-text-muted)", letterSpacing: "0.05em" }}>
+            GROWTH THIS WEEK
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <KPI label="Signups Today" value={stats.signupsToday} color="primary" href="/admin/students" />
+            <KPI label="Signups This Week" value={stats.signupsThisWeek} color="primary" href="/admin/students" />
+            <KPI label="First Purchase Rate" value={`${stats.firstPurchaseRate}%`} color={stats.firstPurchaseRate > 30 ? "success" : "warning"} bar={stats.firstPurchaseRate / 100} href="/admin/transactions" />
+            <KPI label="Repeat Buyers (7d)" value={`${stats.repeatBuyers} (${stats.repeatRate}%)`} color={stats.repeatRate > 20 ? "success" : "warning"} bar={stats.repeatRate / 100} href="/admin/transactions" />
+          </div>
+
+          {stats.topDeals.length > 0 && (
+            <div className="rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+              <a href="/admin/deals" className="text-[12px] font-semibold mb-3 block hover:underline" style={{ color: "var(--color-text)" }}>Top Deals This Week →</a>
+              {stats.topDeals.map((d, i) => (
+                <div key={d.dealId} className="flex items-center gap-3 py-2" style={{ borderBottom: i < stats.topDeals.length - 1 ? "1px solid var(--color-border)" : "none" }}>
+                  <span className="text-[13px] font-bold w-6" style={{ color: "var(--color-primary)" }}>#{i + 1}</span>
+                  <div className="flex-1">
+                    <span className="text-[13px] font-medium" style={{ color: "var(--color-text)" }}>{d.title}</span>
+                    <span className="text-[11px] ml-2" style={{ color: "var(--color-text-muted)" }}>{d.vendor}</span>
+                  </div>
+                  <span className="text-[13px] font-bold" style={{ color: "var(--color-success)" }}>{d.purchases} sold</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Revenue Breakdown + Top Vendors + Categories */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            {/* Revenue */}
+            <div className="rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+              <a href="/admin/transactions" className="text-[12px] font-semibold mb-3 block hover:underline" style={{ color: "var(--color-text)" }}>Revenue →</a>
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>Today</span><span className="text-[13px] font-bold" style={{ color: "var(--color-success)" }}>{fmt(stats.revenueToday)}</span></div>
+                <div className="flex justify-between"><span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>This Week</span><span className="text-[13px] font-bold" style={{ color: "var(--color-success)" }}>{fmt(stats.revenueThisWeek)}</span></div>
+                <div className="flex justify-between"><span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>This Month</span><span className="text-[13px] font-bold" style={{ color: "var(--color-success)" }}>{fmt(stats.revenueThisMonth)}</span></div>
+                <div className="flex justify-between pt-2" style={{ borderTop: "1px solid var(--color-border)" }}><span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>Avg Order</span><span className="text-[13px] font-bold" style={{ color: "var(--color-primary)" }}>{fmt(stats.avgOrderValue)}</span></div>
+                {stats.deadDeals > 0 && <div className="flex justify-between"><span className="text-[12px]" style={{ color: "var(--color-error)" }}>Dead Deals (no sales)</span><span className="text-[13px] font-bold" style={{ color: "var(--color-error)" }}>{stats.deadDeals}</span></div>}
+              </div>
+            </div>
+
+            {/* Top Vendors */}
+            <div className="rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+              <a href="/admin/vendors" className="text-[12px] font-semibold mb-3 block hover:underline" style={{ color: "var(--color-text)" }}>Top Vendors →</a>
+              {(stats.topVendors ?? []).filter(v => v.sales > 0).length === 0
+                ? <p className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>No sales yet</p>
+                : (stats.topVendors ?? []).filter(v => v.sales > 0).map((v, i) => (
+                <div key={v.vendorId} className="flex items-center gap-2 py-1.5" style={{ borderBottom: i < stats.topVendors.length - 1 ? "1px solid var(--color-border)" : "none" }}>
+                  <span className="text-[11px] font-bold w-5" style={{ color: "var(--color-primary)" }}>#{i + 1}</span>
+                  <span className="text-[12px] font-medium flex-1" style={{ color: "var(--color-text)" }}>{v.name}</span>
+                  <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>{v.sales} sales</span>
+                  <span className="text-[12px] font-bold" style={{ color: "var(--color-success)" }}>{fmt(v.revenue)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Category Breakdown */}
+            <div className="rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+              <a href="/admin/deals" className="text-[12px] font-semibold mb-3 block hover:underline" style={{ color: "var(--color-text)" }}>By Category →</a>
+              {(stats.categoryRevenue ?? []).filter(c => c.sales > 0).length === 0
+                ? <p className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>No sales yet</p>
+                : (stats.categoryRevenue ?? []).filter(c => c.sales > 0).map(c => (
+                <div key={c.category} className="flex items-center gap-2 py-1.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                  <span className="text-[12px] font-medium flex-1" style={{ color: "var(--color-text)" }}>{c.category}</span>
+                  <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>{c.sales} sales</span>
+                  <span className="text-[12px] font-bold" style={{ color: "var(--color-success)" }}>{fmt(c.revenue)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div>
@@ -92,8 +181,8 @@ export default function AdminOverview() {
   );
 }
 
-function KPI({ label, value, color, bar, urgent }: {
-  label: string; value: string | number; color: string; bar?: number; urgent?: boolean;
+function KPI({ label, value, color, bar, urgent, href }: {
+  label: string; value: string | number; color: string; bar?: number; urgent?: boolean; href?: string;
 }) {
   const colors: Record<string, { text: string; border: string }> = {
     primary: { text: "var(--color-primary)", border: "var(--color-primary-border)" },
@@ -104,9 +193,9 @@ function KPI({ label, value, color, bar, urgent }: {
   };
   const c = colors[color] ?? colors.primary;
 
-  return (
+  const content = (
     <div
-      className="rounded-xl p-4"
+      className={`rounded-xl p-4 ${href ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
       style={{
         background: "var(--color-surface)",
         border: urgent ? `1px solid ${c.border}` : "1px solid var(--color-border)",
@@ -121,6 +210,8 @@ function KPI({ label, value, color, bar, urgent }: {
       )}
     </div>
   );
+
+  return href ? <a href={href}>{content}</a> : content;
 }
 
 function QA({ href, label, sub, urgent }: { href: string; label: string; sub?: string; urgent?: boolean }) {

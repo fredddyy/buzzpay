@@ -36,6 +36,11 @@ export default function StudentsPage() {
   const [acting, setActing] = useState<string | null>(null);
   const [selected, setSelected] = useState<Student | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
+  const [stats, setStats] = useState<{ totalUsers: number; verifiedUsers: number; pendingVerifications: number; signupsToday: number; signupsThisWeek: number; firstPurchaseRate: number } | null>(null);
+
+  useEffect(() => {
+    api.get("/admin/stats").then(r => setStats(r.data.data)).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,6 +110,16 @@ export default function StudentsPage() {
           </div>
           <FilterPills options={STATUS_FILTERS} selected={filter} onChange={handleFilter} />
         </div>
+
+        {stats && (
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+            <MiniKPI label="Total Students" value={stats.totalUsers} />
+            <MiniKPI label="Verified" value={stats.verifiedUsers} color="#22C55E" />
+            <MiniKPI label="Pending" value={stats.pendingVerifications} color="#E65100" />
+            <MiniKPI label="Signups Today" value={stats.signupsToday} />
+            <MiniKPI label="First Purchase %" value={`${stats.firstPurchaseRate}%`} color={stats.firstPurchaseRate > 30 ? "#22C55E" : "#E65100"} />
+          </div>
+        )}
 
         <div className="mb-4 w-full sm:w-64">
           <SearchBar value={search} onChange={handleSearch} placeholder="Search name, email, phone..." />
@@ -317,6 +332,15 @@ function InfoRow({ label, value, mono, color, extra }: {
           style={{ color: color || "var(--color-text)" }}>{value}</span>
         {extra && <span className="text-[10px] ml-1.5" style={{ color: "var(--color-success)" }}>{extra}</span>}
       </div>
+    </div>
+  );
+}
+
+function MiniKPI({ label, value, color }: { label: string; value: string | number; color?: string }) {
+  return (
+    <div className="rounded-xl p-3" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+      <p className="text-[18px] font-bold" style={{ color: color || "var(--color-primary)" }}>{value}</p>
+      <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>{label}</p>
     </div>
   );
 }

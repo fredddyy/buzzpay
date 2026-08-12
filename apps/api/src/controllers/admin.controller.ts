@@ -4,6 +4,7 @@ import { AppError } from '../middleware/error.js';
 import { hashPassword } from '../utils/hash.js';
 import { realtimeService } from '../services/realtime.service.js';
 import { pushService } from '../services/push.service.js';
+import { fcmService } from '../services/fcm.service.js';
 
 function paginationParams(req: Request) {
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -42,6 +43,61 @@ export const adminController = {
         prisma.voucher.count(),
       ]);
 
+      // Growth metrics
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const [signupsToday, signupsThisWeek, buyersThisWeek, repeatBuyers, topDeals] = await Promise.all([
+        prisma.user.count({ where: { role: 'STUDENT', createdAt: { gte: today } } }),
+        prisma.user.count({ where: { role: 'STUDENT', createdAt: { gte: weekAgo } } }),
+        prisma.payment.groupBy({ by: ['userId'], where: { status: 'SUCCESS', createdAt: { gte: weekAgo } }, _count: true }),
+        prisma.payment.groupBy({ by: ['userId'], where: { status: 'SUCCESS', createdAt: { gte: weekAgo } }, _count: true, having: { userId: { _count: { gte: 2 } } } }),
+        prisma.payment.groupBy({
+          by: ['dealId'],
+          where: { status: 'SUCCESS', createdAt: { gte: weekAgo }, dealId: { not: null } },
+          _count: true,
+          orderBy: { _count: { dealId: 'desc' } },
+          take: 5,
+        }),
+      ]);
+
+      // Get deal titles for top deals
+      const topDealIds = topDeals.map(d => d.dealId).filter(Boolean) as string[];
+      const dealNames = topDealIds.length > 0 ? await prisma.deal.findMany({
+        where: { id: { in: topDealIds } },
+        select: { id: true, title: true, vendorId: true, vendor: { select: { businessName: true } } },
+      }) : [];
+      const dealMap = new Map(dealNames.map(d => [d.id, d]));
+
+      const firstPurchaseRate = signupsThisWeek > 0 ? Math.round((buyersThisWeek.length / signupsThisWeek) * 100) : 0;
+      const repeatRate = buyersThisWeek.length > 0 ? Math.round((repeatBuyers.length / buyersThisWeek.length) * 100) : 0;
+
+      // High-priority analytics
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const [revenueToday, revenueWeek, revenueMonth, avgOrder, topVendors, deadDeals, categoryRevenue] = await Promise.all([
+        prisma.payment.aggregate({ where: { status: 'SUCCESS', paidAt: { gte: today } }, _sum: { amount: true } }),
+        prisma.payment.aggregate({ where: { status: 'SUCCESS', paidAt: { gte: weekAgo } }, _sum: { amount: true } }),
+        prisma.payment.aggregate({ where: { status: 'SUCCESS', paidAt: { gte: monthStart } }, _sum: { amount: true } }),
+        prisma.payment.aggregate({ where: { status: 'SUCCESS' }, _avg: { amount: true } }),
+        prisma.$queryRaw<{ vendorId: string; businessName: string; revenue: bigint; count: bigint }[]>`
+          SELECT v.id as "vendorId", v."businessName", COALESCE(SUM(p."vendorAmount"), 0) as revenue, COUNT(p.id) as count
+          FROM "Vendor" v
+          LEFT JOIN "Deal" d ON d."vendorId" = v.id
+          LEFT JOIN "Payment" p ON p."dealId" = d.id AND p.status = 'SUCCESS'
+          GROUP BY v.id, v."businessName"
+          ORDER BY revenue DESC LIMIT 5
+        `,
+        prisma.deal.count({ where: { isActive: true, expiresAt: { gt: new Date() }, payments: { none: { status: 'SUCCESS' } } } }),
+        prisma.$queryRaw<{ category: string; revenue: bigint; count: bigint }[]>`
+          SELECT d.category, COALESCE(SUM(p.amount), 0) as revenue, COUNT(p.id) as count
+          FROM "Deal" d
+          LEFT JOIN "Payment" p ON p."dealId" = d.id AND p.status = 'SUCCESS'
+          WHERE d."isActive" = true
+          GROUP BY d.category
+          ORDER BY revenue DESC
+        `,
+      ]);
+
       res.json({
         success: true,
         data: {
@@ -53,6 +109,29 @@ export const adminController = {
           totalTransactions,
           totalRevenue: revenueAgg._sum.amount ?? 0,
           redemptionRate: totalVouchers > 0 ? Math.round((redeemedCount / totalVouchers) * 100) : 0,
+          // Growth metrics
+          signupsToday,
+          signupsThisWeek,
+          buyersThisWeek: buyersThisWeek.length,
+          repeatBuyers: repeatBuyers.length,
+          firstPurchaseRate,
+          repeatRate,
+          topDeals: topDeals.map(d => ({
+            dealId: d.dealId,
+            title: dealMap.get(d.dealId!)?.title ?? 'Unknown',
+            vendor: dealMap.get(d.dealId!)?.vendor?.businessName ?? '',
+            purchases: d._count,
+          })),
+          // Revenue breakdown
+          revenueToday: revenueToday._sum.amount ?? 0,
+          revenueThisWeek: revenueWeek._sum.amount ?? 0,
+          revenueThisMonth: revenueMonth._sum.amount ?? 0,
+          avgOrderValue: Math.round(avgOrder._avg.amount ?? 0),
+          // Vendor performance
+          topVendors: topVendors.map(v => ({ vendorId: v.vendorId, name: v.businessName, revenue: Number(v.revenue), sales: Number(v.count) })),
+          deadDeals,
+          // Category breakdown
+          categoryRevenue: categoryRevenue.map(c => ({ category: c.category, revenue: Number(c.revenue), sales: Number(c.count) })),
         },
       });
     } catch (err) { next(err); }
@@ -230,6 +309,20 @@ export const adminController = {
 
       res.json({ success: true, data: { id: updated.id, isActive: updated.isActive } });
       realtimeService.dealChanged(updated.id, 'updated');
+
+      // Push notification to all students when a deal goes live
+      if (updated.isActive && !deal.isActive) {
+        const vendor = await prisma.vendor.findUnique({ where: { id: updated.vendorId }, select: { businessName: true } });
+        const price = `₦${(updated.studentPrice / 100).toLocaleString('en-NG')}`;
+        const students = await prisma.user.findMany({
+          where: { role: 'STUDENT', fcmToken: { not: null } },
+          select: { id: true },
+          take: 500,
+        });
+        for (const s of students) {
+          fcmService.sendToUser(s.id, `New deal! 🔥 ${updated.title}`, `${price} at ${vendor?.businessName ?? 'a vendor'} — grab it before it's gone!`, { type: 'new_deal', dealId: updated.id }).catch(() => {});
+        }
+      }
     } catch (err) { next(err); }
   },
 

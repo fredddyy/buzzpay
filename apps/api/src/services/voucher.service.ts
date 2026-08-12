@@ -3,6 +3,8 @@ import { AppError } from '../middleware/error.js';
 import { buildQrPayload, validateQrPayload, generateQrSecret } from '../utils/qr-totp.js';
 import { realtimeService } from './realtime.service.js';
 import { fcmService } from './fcm.service.js';
+import { loyaltyService } from './loyalty.service.js';
+import { analyticsService } from './analytics.service.js';
 import type { VoucherStatus } from '@prisma/client';
 
 export const voucherService = {
@@ -75,6 +77,8 @@ export const voucherService = {
     realtimeService.voucherRedeemed(voucher.id, voucher.dealId, voucher.deal.vendor.id);
     realtimeService.voucherStatusChanged(voucher.student.user.id, voucher.id, 'REDEEMED');
     fcmService.voucherRedeemed(voucher.student.user.id, voucher.deal.title, voucher.deal.vendor.businessName).catch(() => {});
+    loyaltyService.addStamp(voucher.studentId, voucher.deal.vendor.id, voucher.student.user.id).catch(() => {});
+    analyticsService.track('voucher_redeemed', { userId: voucher.student.user.id, dealId: voucher.dealId, vendorId: voucher.deal.vendor.id });
     return {
       voucherId: voucher.id,
       dealTitle: voucher.deal.title,
@@ -98,6 +102,8 @@ export const voucherService = {
     realtimeService.voucherRedeemed(voucher.id, voucher.dealId, voucher.deal.vendor.id);
     realtimeService.voucherStatusChanged(voucher.student.user.id, voucher.id, 'REDEEMED');
     fcmService.voucherRedeemed(voucher.student.user.id, voucher.deal.title, voucher.deal.vendor.businessName).catch(() => {});
+    loyaltyService.addStamp(voucher.studentId, voucher.deal.vendor.id, voucher.student.user.id).catch(() => {});
+    analyticsService.track('voucher_redeemed', { userId: voucher.student.user.id, dealId: voucher.dealId, vendorId: voucher.deal.vendor.id });
     return {
       voucherId: voucher.id,
       dealTitle: voucher.deal.title,

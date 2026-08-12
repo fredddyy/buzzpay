@@ -50,6 +50,19 @@ router.get('/vendors/:vendorId/qr', adminController.listVendorQrCodes);
 router.patch('/vendors/:vendorId/qr/link', adminController.linkQrCode);
 router.delete('/qr/:id', adminController.unlinkQrCode);
 
+// Analytics
+import { analyticsService } from '../services/analytics.service.js';
+router.get('/analytics', async (req, res, next) => {
+  try {
+    const days = Number(req.query.days) || 7;
+    const [stats, topDeals] = await Promise.all([
+      analyticsService.getStats(days),
+      analyticsService.getTopDeals(days),
+    ]);
+    res.json({ success: true, data: { stats, topDeals } });
+  } catch (err) { next(err); }
+});
+
 // Payouts
 import { payoutService } from '../services/payout.service.js';
 import { prisma } from '@buzzpay/db';

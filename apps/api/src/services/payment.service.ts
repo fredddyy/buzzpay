@@ -9,6 +9,8 @@ import { paystackService } from './paystack.service.js';
 import { AppError } from '../middleware/error.js';
 import { realtimeService } from './realtime.service.js';
 import { fcmService } from './fcm.service.js';
+import { streakService } from './streak.service.js';
+import { analyticsService } from './analytics.service.js';
 import { VOUCHER_EXPIRY_HOURS, VOUCHER_CODE_LENGTH } from '@buzzpay/shared';
 
 export const paymentService = {
@@ -205,6 +207,15 @@ export const paymentService = {
 
     realtimeService.paymentCompleted(payment.id, payment.dealId ?? '', payment.amount);
     realtimeService.voucherStatusChanged(user.id, payment.id, 'ACTIVE');
+
+    // Analytics
+    analyticsService.track('payment_completed', { userId: payment.userId, dealId: payment.dealId ?? undefined, metadata: { amount: payment.amount } });
+
+    // Update streak
+    const streakResult = await streakService.recordPurchase(payment.userId);
+    if (streakResult.milestone) {
+      fcmService.sendToUser(payment.userId, `🔥 ${streakResult.currentStreak}-day streak!`, `You've bought deals ${streakResult.currentStreak} days in a row. Keep it up!`, { type: 'streak_milestone' }).catch(() => {});
+    }
 
     // Push notification
     const dealTitle = payment.orderItems?.length

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -397,20 +398,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
 
-                        // Dev login — hidden at bottom for testing
-                        const SizedBox(height: 8),
-                        Center(
-                          child: TextButton(
-                            onPressed: _loading ? null : _devLogin,
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            ),
-                            child: Text(
-                              'Dev Login',
-                              style: TextStyle(fontSize: 11, color: AppColors.textTertiary.withValues(alpha: 0.5)),
+                        // Dev login — only visible in debug builds
+                        if (kDebugMode) ...[
+                          const SizedBox(height: 8),
+                          Center(
+                            child: TextButton(
+                              onPressed: _loading ? null : _devLogin,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              ),
+                              child: Text(
+                                'Dev Login',
+                                style: TextStyle(fontSize: 11, color: AppColors.textTertiary.withValues(alpha: 0.5)),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
 
                         const SizedBox(height: 16),
                       ],

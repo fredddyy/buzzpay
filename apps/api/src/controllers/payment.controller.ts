@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { paymentService } from '../services/payment.service.js';
 import { paystackService } from '../services/paystack.service.js';
 import { payoutService } from '../services/payout.service.js';
+import { walletService } from '../services/wallet.service.js';
 
 export const paymentController = {
   async initialize(req: Request, res: Response) {
@@ -41,8 +42,15 @@ export const paymentController = {
 
     const { event, data } = req.body;
 
+    // Handle wallet top-up
+    if (event === 'charge.success' && data?.metadata?.type === 'wallet_topup') {
+      const userId = data.metadata.userId as string;
+      const amount = data.amount as number;
+      const reference = data.reference as string;
+      await walletService.creditWallet(userId, amount, 'TOP_UP', { reference });
+    }
     // Handle payment events
-    if (event.startsWith('charge.')) {
+    else if (event.startsWith('charge.')) {
       await paymentService.handleWebhook(event, data);
     }
     // Handle transfer events (payouts)

@@ -49,6 +49,11 @@ export default function DealsPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pageStats, setPageStats] = useState<{ totalDeals: number; deadDeals: number; topDeals: { title: string; vendor: string; purchases: number }[]; categoryRevenue: { category: string; revenue: number; sales: number }[] } | null>(null);
+
+  useEffect(() => {
+    api.get("/admin/stats").then(r => setPageStats(r.data.data)).catch(() => {});
+  }, []);
   const [modalDeal, setModalDeal] = useState<Deal | null | "new">(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");

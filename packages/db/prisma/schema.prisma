@@ -52,11 +52,17 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  fcmToken String?   // Firebase Cloud Messaging device token
+  fcmToken       String?   // Firebase Cloud Messaging device token
+  walletBalance  Int       @default(0) // kobo
+  referralCode   String?   @unique
+  referredById   String?
+  referralCount  Int       @default(0)
 
   student  Student?
   vendor   Vendor?
   payments Payment[]
+  streak   UserStreak?
+  walletTransactions WalletTransaction[]
 
   @@index([email])
   @@index([phone])
@@ -281,6 +287,45 @@ model PayoutItem {
 
   @@unique([payoutId, paymentId])
   @@index([paymentId])
+}
+
+model WalletTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // TOP_UP, PURCHASE, REFUND, REFERRAL_BONUS
+  amount    Int      // kobo (positive for credit, negative for debit)
+  balance   Int      // balance after this transaction
+  reference String?  // Paystack reference for top-ups
+  dealId    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  event     String   // deal_viewed, payment_completed, voucher_redeemed, app_opened, deal_shared
+  dealId    String?
+  vendorId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([userId, event])
+  @@index([dealId])
+}
+
+model UserStreak {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  currentStreak  Int      @default(0)  // consecutive days with a purchase
+  longestStreak  Int      @default(0)
+  lastPurchaseDate DateTime? // date of last purchase (no time)
+  updatedAt      DateTime @updatedAt
 }
 
 model VendorBankAccount {
