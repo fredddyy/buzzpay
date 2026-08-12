@@ -46,6 +46,7 @@ export default function CampaignsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Campaign | null>(null);
   const [selected, setSelected] = useState<Campaign | null>(null);
   const [campaignDeals, setCampaignDeals] = useState<CampaignDeal[]>([]);
 
@@ -135,13 +136,20 @@ export default function CampaignsPage() {
                     <span>{c.dealCount} deal{c.dealCount !== 1 ? "s" : ""}</span>
                   </div>
                 </div>
-                {c.status === "DRAFT" && (
-                  <button onClick={(e) => { e.stopPropagation(); publish(c.id); }}
+                <div className="flex gap-2">
+                  <button onClick={(e) => { e.stopPropagation(); setEditing(c); }}
                     className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
-                    style={{ background: "var(--color-success)", color: "white" }}>
-                    Publish All
+                    style={{ background: "var(--color-surface-hover)", color: "var(--color-text-muted)" }}>
+                    Edit
                   </button>
-                )}
+                  {c.status === "DRAFT" && (
+                    <button onClick={(e) => { e.stopPropagation(); publish(c.id); }}
+                      className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+                      style={{ background: "var(--color-success)", color: "white" }}>
+                      Publish All
+                    </button>
+                  )}
+                </div>
                 <button onClick={async (e) => { e.stopPropagation(); if (!confirm(`Delete "${c.name}"? Deals will be kept.`)) return; try { await api.delete(`/admin/campaigns/${c.id}`); } catch {} setCampaigns(prev => prev.filter(x => x.id !== c.id)); if (selected?.id === c.id) { setSelected(null); setCampaignDeals([]); } }}
                   className="p-1 rounded opacity-30 hover:opacity-100 transition-opacity"
                   style={{ color: "var(--color-error)" }} title="Delete campaign">
@@ -162,13 +170,20 @@ export default function CampaignsPage() {
             <h2 className="text-[15px] font-semibold" style={{ color: "var(--color-text)" }}>
               {selected.name} — Deals
             </h2>
-            {selected.status === "DRAFT" && (
-              <button onClick={() => {/* open add deal modal */}}
+            <div className="flex gap-2">
+              <button onClick={async () => {
+                try { const r = await api.post(`/admin/campaigns/${selected.id}/sync`); alert(`Synced ${r.data.data.updated} deals with campaign schedule`); loadCampaignDeals(selected.id); load(); } catch { alert('Sync failed'); }
+              }}
+                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+                style={{ background: "var(--color-warning-surface)", color: "var(--color-warning)", border: "1px solid var(--color-warning-border)" }}>
+                Sync Schedule
+              </button>
+              <button onClick={() => {}}
                 className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
                 style={{ background: "var(--color-primary-surface)", color: "var(--color-primary)", border: "1px solid var(--color-primary-border)" }}>
                 + Add Deal
               </button>
-            )}
+            </div>
           </div>
 
           {campaignDeals.length === 0 ? (
@@ -177,12 +192,12 @@ export default function CampaignsPage() {
             </div>
           ) : (
             <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-              <div className="grid grid-cols-[1fr_90px_100px_80px_80px] gap-3 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider"
+              <div className="grid grid-cols-[1fr_90px_100px_80px_80px_80px] gap-3 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider"
                 style={{ color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)" }}>
-                <span>Deal</span><span>Category</span><span>Price</span><span>Stock</span><span>Status</span>
+                <span>Deal</span><span>Category</span><span>Price</span><span>Stock</span><span>Status</span><span className="text-right">Actions</span>
               </div>
               {campaignDeals.map(d => (
-                <div key={d.id} className="grid grid-cols-[1fr_90px_100px_80px_80px] gap-3 px-4 py-3 items-center"
+                <div key={d.id} className="grid grid-cols-[1fr_90px_100px_80px_80px_80px] gap-3 px-4 py-3 items-center"
                   style={{ borderBottom: "1px solid var(--color-border)" }}>
                   <div className="min-w-0">
                     <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{d.title}</p>
@@ -198,6 +213,20 @@ export default function CampaignsPage() {
                     }}>
                     {d.isActive ? "Live" : "Draft"}
                   </span>
+                  <div className="flex gap-1 justify-end">
+                    {!d.isActive && (
+                      <button onClick={async () => {
+                        try { await api.put(`/admin/deals/${d.id}/toggle`); loadCampaignDeals(selected!.id); } catch {}
+                      }} className="px-2 py-1 rounded text-[10px] font-semibold"
+                        style={{ background: "var(--color-success-surface)", color: "var(--color-success)" }}>Activate</button>
+                    )}
+                    <a href={`/admin/deals`} className="px-2 py-1 rounded text-[10px] font-semibold"
+                      style={{ background: "var(--color-surface-hover)", color: "var(--color-text-muted)" }}>Edit</a>
+                    <button onClick={async () => {
+                      if (!confirm(`Remove "${d.title}" from this campaign?`)) return;
+                      try { await api.put(`/admin/deals/${d.id}`, { campaignId: null }); loadCampaignDeals(selected!.id); load(); } catch {}
+                    }} className="px-2 py-1 rounded text-[10px] font-semibold" style={{ color: "var(--color-error)" }}>Remove</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -218,8 +247,21 @@ export default function CampaignsPage() {
         />
       )}
 
-      {/* Add deal to campaign modal */}
-      {selected && selected.status === "DRAFT" && (
+      {/* Edit campaign modal */}
+      {editing && (
+        <CreateCampaignModal
+          initial={editing}
+          onClose={() => setEditing(null)}
+          onCreated={(updated) => {
+            setEditing(null);
+            setCampaigns(prev => prev.map(c => c.id === updated.id ? updated : c));
+            if (selected?.id === updated.id) setSelected(updated);
+          }}
+        />
+      )}
+
+      {/* Add deal to campaign */}
+      {selected && (
         <AddDealPanel
           campaign={selected}
           vendors={vendors}
@@ -234,16 +276,18 @@ export default function CampaignsPage() {
 /* Create Campaign Modal                    */
 /* ──────────────────────────────────────── */
 
-function CreateCampaignModal({ onClose, onCreated }: {
+function CreateCampaignModal({ onClose, onCreated, initial }: {
   onClose: () => void;
   onCreated: (campaign: Campaign) => void;
+  initial?: Campaign | null;
 }) {
-  const [name, setName] = useState("");
-  const [featuredSection, setFeaturedSection] = useState("");
-  const [dailyStart, setDailyStart] = useState("08:00");
-  const [dailyEnd, setDailyEnd] = useState("11:00");
-  const [previewStart, setPreviewStart] = useState("06:00");
-  const [activeDays, setActiveDays] = useState<number[]>([1,2,3,4,5]);
+  const isEdit = !!initial;
+  const [name, setName] = useState(initial?.name || "");
+  const [featuredSection, setFeaturedSection] = useState(initial?.featuredSection || "");
+  const [dailyStart, setDailyStart] = useState(initial?.dailyStart || "08:00");
+  const [dailyEnd, setDailyEnd] = useState(initial?.dailyEnd || "11:00");
+  const [previewStart, setPreviewStart] = useState(initial?.previewStart || "06:00");
+  const [activeDays, setActiveDays] = useState<number[]>(initial?.activeDays || [1,2,3,4,5]);
   const [saving, setSaving] = useState(false);
 
   const inputStyle: React.CSSProperties = {
@@ -260,11 +304,14 @@ function CreateCampaignModal({ onClose, onCreated }: {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const res = await api.post("/admin/campaigns", {
-        name, featuredSection: featuredSection || name,
-        dailyStart, dailyEnd, previewStart, activeDays,
-      });
-      onCreated({ ...res.data.data, dealCount: 0 });
+      const payload = { name, featuredSection: featuredSection || name, dailyStart, dailyEnd, previewStart, activeDays };
+      if (isEdit && initial) {
+        await api.put(`/admin/campaigns/${initial.id}`, payload);
+        onCreated({ ...initial, ...payload, dealCount: initial.dealCount });
+      } else {
+        const res = await api.post("/admin/campaigns", payload);
+        onCreated({ ...res.data.data, dealCount: 0 });
+      }
     } catch {}
     setSaving(false);
   }
@@ -274,7 +321,7 @@ function CreateCampaignModal({ onClose, onCreated }: {
       <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl p-6"
         style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>New Campaign</h2>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>{isEdit ? "Edit Campaign" : "New Campaign"}</h2>
           <button onClick={onClose} className="p-1" style={{ color: "var(--color-text-muted)" }}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -359,7 +406,7 @@ function CreateCampaignModal({ onClose, onCreated }: {
             <button type="submit" disabled={saving || !name.trim()}
               className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold disabled:opacity-50"
               style={{ background: "var(--color-primary)", color: "white" }}>
-              {saving ? "Creating..." : "Create Campaign"}
+              {saving ? "Saving..." : isEdit ? "Update Campaign" : "Create Campaign"}
             </button>
           </div>
         </form>
@@ -377,6 +424,7 @@ function AddDealPanel({ campaign, vendors, onAdded }: {
   vendors: Vendor[];
   onAdded: () => void;
 }) {
+  const [mode, setMode] = useState<"new" | "existing">("existing");
   const [vendorId, setVendorId] = useState(vendors[0]?.id || "");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("FOOD");
@@ -385,13 +433,42 @@ function AddDealPanel({ campaign, vendors, onAdded }: {
   const [totalQuantity, setTotalQuantity] = useState("50");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [existingDeals, setExistingDeals] = useState<{ id: string; title: string; vendorName: string; studentPrice: number }[]>([]);
+  const [selectedDealId, setSelectedDealId] = useState("");
 
   const inputStyle: React.CSSProperties = {
     background: "var(--color-surface-light)", border: "1px solid var(--color-border)",
     color: "var(--color-text)", borderRadius: 10, padding: "8px 12px", fontSize: 13, width: "100%", outline: "none",
   };
 
-  async function add() {
+  // Load existing deals when switching to "existing" mode
+  useEffect(() => {
+    if (mode === "existing") {
+      api.get("/admin/deals?limit=100").then(r => {
+        const deals = (r.data.data || []).filter((d: { campaignId: string | null }) => !d.campaignId);
+        setExistingDeals(deals.map((d: { id: string; title: string; vendorName: string; studentPrice: number }) => ({
+          id: d.id, title: d.title, vendorName: d.vendorName, studentPrice: d.studentPrice,
+        })));
+      }).catch(() => {});
+    }
+  }, [mode]);
+
+  async function addExisting() {
+    if (!selectedDealId) return;
+    setSaving(true); setMessage("");
+    try {
+      await api.post(`/admin/campaigns/${campaign.id}/deals`, { existingDealId: selectedDealId });
+      const deal = existingDeals.find(d => d.id === selectedDealId);
+      setMessage(`Added "${deal?.title}" to campaign`);
+      setSelectedDealId("");
+      onAdded();
+    } catch {
+      setMessage("Failed to add deal");
+    }
+    setSaving(false);
+  }
+
+  async function addNew() {
     if (!title || !originalPrice || !studentPrice) return;
     setSaving(true); setMessage("");
     try {
@@ -415,9 +492,40 @@ function AddDealPanel({ campaign, vendors, onAdded }: {
 
   return (
     <div className="mt-4 rounded-xl p-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-primary-border)" }}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-primary)", letterSpacing: "0.05em" }}>
-        Quick Add Deal to "{campaign.name}"
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-primary)", letterSpacing: "0.05em" }}>
+          Add Deal to &quot;{campaign.name}&quot;
+        </p>
+        <div className="flex gap-1">
+          <button onClick={() => setMode("existing")} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+            style={{ background: mode === "existing" ? "var(--color-primary)" : "var(--color-surface-hover)", color: mode === "existing" ? "white" : "var(--color-text-muted)" }}>
+            Existing Deal
+          </button>
+          <button onClick={() => setMode("new")} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+            style={{ background: mode === "new" ? "var(--color-primary)" : "var(--color-surface-hover)", color: mode === "new" ? "white" : "var(--color-text-muted)" }}>
+            New Deal
+          </button>
+        </div>
+      </div>
+
+      {mode === "existing" ? (
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Select an existing deal</label>
+            <select value={selectedDealId} onChange={e => setSelectedDealId(e.target.value)} style={inputStyle}>
+              <option value="">Choose a deal...</option>
+              {existingDeals.map(d => (
+                <option key={d.id} value={d.id}>{d.title} — {d.vendorName} (₦{d.studentPrice / 100})</option>
+              ))}
+            </select>
+          </div>
+          <button onClick={addExisting} disabled={saving || !selectedDealId}
+            className="px-4 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50"
+            style={{ background: "var(--color-primary)", color: "white" }}>
+            {saving ? "..." : "Add"}
+          </button>
+        </div>
+      ) : (
       <div className="grid grid-cols-[1fr_1fr_80px_80px_80px_60px_auto] gap-2 items-end">
         <div>
           <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Vendor</label>
@@ -447,12 +555,13 @@ function AddDealPanel({ campaign, vendors, onAdded }: {
           <label className="text-[10px] font-semibold block mb-1" style={{ color: "var(--color-text-muted)" }}>Qty</label>
           <input type="number" value={totalQuantity} onChange={e => setTotalQuantity(e.target.value)} style={inputStyle} />
         </div>
-        <button onClick={add} disabled={saving || !title}
+        <button onClick={addNew} disabled={saving || !title}
           className="px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50"
           style={{ background: "var(--color-primary)", color: "white" }}>
           {saving ? "..." : "Add"}
         </button>
       </div>
+      )}
       {message && (
         <p className="text-[11px] mt-2" style={{ color: message.startsWith("Failed") ? "var(--color-error)" : "var(--color-success)" }}>
           {message}

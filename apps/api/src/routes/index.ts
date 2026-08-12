@@ -206,10 +206,25 @@ router.get('/users/savings', authenticate, async (req, res) => {
   } catch { res.status(500).json({ success: false, message: 'Server error' }); }
 });
 
-// Student verification — upload ID photo
+// Image uploads
 import multer from 'multer';
 import { cloudinaryService } from '../services/cloudinary.service.js';
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+// General image upload — returns Cloudinary URL (for deal images, vendor logos, etc.)
+router.post('/upload/image', authenticate, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) { res.status(400).json({ success: false, message: 'No image file provided' }); return; }
+    if (!cloudinaryService.isConfigured) { res.status(500).json({ success: false, message: 'Image upload not configured' }); return; }
+    const folder = (req.body.folder as string) || 'buzzpay/general';
+    const url = await cloudinaryService.uploadBuffer(req.file.buffer, folder);
+    res.json({ success: true, data: { url } });
+  } catch {
+    res.status(500).json({ success: false, message: 'Upload failed' });
+  }
+});
+
+// Student verification — upload ID photo
 
 router.post('/students/verify', authenticate, upload.single('photo'), async (req, res) => {
   try {

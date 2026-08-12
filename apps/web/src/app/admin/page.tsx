@@ -15,8 +15,10 @@ interface Stats {
   redemptionRate: number;
   signupsToday: number;
   signupsThisWeek: number;
-  buyersThisWeek: number;
+  buyersInRange: number;
+  signupsInRange: number;
   repeatBuyers: number;
+  range: string;
   firstPurchaseRate: number;
   repeatRate: number;
   topDeals: { dealId: string; title: string; vendor: string; purchases: number }[];
@@ -24,16 +26,24 @@ interface Stats {
   revenueThisWeek: number;
   revenueThisMonth: number;
   avgOrderValue: number;
-  topVendors: { vendorId: string; name: string; revenue: number; sales: number }[];
+  topVendors: { vendorId: string; name: string; logoUrl: string | null; revenue: number; sales: number }[];
   deadDeals: number;
   categoryRevenue: { category: string; revenue: number; sales: number }[];
 }
 
+const RANGES = [
+  { label: "Today", value: "today" },
+  { label: "This Week", value: "week" },
+  { label: "This Month", value: "month" },
+  { label: "All Time", value: "all" },
+];
+
 export default function AdminOverview() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState("week");
 
-  useEffect(() => { loadStats(); }, []);
+  useEffect(() => { loadStats(); }, [range]);
 
   // Real-time: auto-refresh stats when anything changes
   useEffect(() => {
@@ -47,7 +57,7 @@ export default function AdminOverview() {
 
   async function loadStats() {
     try {
-      const res = await api.get("/admin/stats");
+      const res = await api.get(`/admin/stats?range=${range}`);
       setStats(res.data.data);
     } catch {
       setStats(null);
@@ -62,9 +72,24 @@ export default function AdminOverview() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>Dashboard</h1>
-        <p className="text-[13px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Real-time overview of BuzzPay operations</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--color-text)" }}>Dashboard</h1>
+          <p className="text-[13px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Real-time overview of BuzzPay operations</p>
+        </div>
+        <div className="flex gap-1">
+          {RANGES.map(r => (
+            <button key={r.value} onClick={() => setRange(r.value)}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
+              style={{
+                background: range === r.value ? "var(--color-primary)" : "var(--color-surface)",
+                color: range === r.value ? "white" : "var(--color-text-muted)",
+                border: range === r.value ? "none" : "1px solid var(--color-border)",
+              }}>
+              {r.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* KPI Grid */}
@@ -94,13 +119,13 @@ export default function AdminOverview() {
       {!loading && stats && (
         <div className="mb-6">
           <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-text-muted)", letterSpacing: "0.05em" }}>
-            GROWTH THIS WEEK
+            GROWTH — {RANGES.find(r => r.value === range)?.label?.toUpperCase() ?? 'THIS WEEK'}
           </p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <KPI label="Signups Today" value={stats.signupsToday} color="primary" href="/admin/students" />
-            <KPI label="Signups This Week" value={stats.signupsThisWeek} color="primary" href="/admin/students" />
+            <KPI label={`Signups (${RANGES.find(r => r.value === range)?.label})`} value={stats.signupsInRange ?? stats.signupsThisWeek ?? 0} color="primary" href="/admin/students" />
             <KPI label="First Purchase Rate" value={`${stats.firstPurchaseRate}%`} color={stats.firstPurchaseRate > 30 ? "success" : "warning"} bar={stats.firstPurchaseRate / 100} href="/admin/transactions" />
-            <KPI label="Repeat Buyers (7d)" value={`${stats.repeatBuyers} (${stats.repeatRate}%)`} color={stats.repeatRate > 20 ? "success" : "warning"} bar={stats.repeatRate / 100} href="/admin/transactions" />
+            <KPI label="Repeat Buyers" value={`${stats.repeatBuyers} (${stats.repeatRate}%)`} color={stats.repeatRate > 20 ? "success" : "warning"} bar={stats.repeatRate / 100} href="/admin/transactions" />
           </div>
 
           {stats.topDeals.length > 0 && (
@@ -141,6 +166,10 @@ export default function AdminOverview() {
                 : (stats.topVendors ?? []).filter(v => v.sales > 0).map((v, i) => (
                 <div key={v.vendorId} className="flex items-center gap-2 py-1.5" style={{ borderBottom: i < stats.topVendors.length - 1 ? "1px solid var(--color-border)" : "none" }}>
                   <span className="text-[11px] font-bold w-5" style={{ color: "var(--color-primary)" }}>#{i + 1}</span>
+                  {v.logoUrl
+                    ? <img src={v.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                    : <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: "var(--color-primary)", color: "white" }}>{v.name[0]}</span>
+                  }
                   <span className="text-[12px] font-medium flex-1" style={{ color: "var(--color-text)" }}>{v.name}</span>
                   <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>{v.sales} sales</span>
                   <span className="text-[12px] font-bold" style={{ color: "var(--color-success)" }}>{fmt(v.revenue)}</span>

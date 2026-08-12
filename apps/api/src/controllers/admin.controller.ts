@@ -19,8 +19,17 @@ function paginationMeta(total: number, page: number, limit: number) {
 
 export const adminController = {
   // ─── Dashboard Stats ──────────────────────────────────────
-  async stats(_req: Request, res: Response, next: NextFunction) {
+  async stats(req: Request, res: Response, next: NextFunction) {
     try {
+      // Time range filter
+      const range = (req.query.range as string) || 'week';
+      const now = new Date();
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const rangeStart = range === 'today' ? today
+        : range === 'month' ? new Date(now.getFullYear(), now.getMonth(), 1)
+        : range === 'all' ? new Date(0)
+        : new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000); // default: week
+      const rangeFilter = { gte: rangeStart };
       const [
         totalUsers,
         verifiedUsers,
@@ -43,18 +52,15 @@ export const adminController = {
         prisma.voucher.count(),
       ]);
 
-      // Growth metrics
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-      const [signupsToday, signupsThisWeek, buyersThisWeek, repeatBuyers, topDeals] = await Promise.all([
+      // Growth metrics (filtered by range)
+      const [signupsToday, signupsInRange, buyersInRange, repeatBuyers, topDeals] = await Promise.all([
         prisma.user.count({ where: { role: 'STUDENT', createdAt: { gte: today } } }),
-        prisma.user.count({ where: { role: 'STUDENT', createdAt: { gte: weekAgo } } }),
-        prisma.payment.groupBy({ by: ['userId'], where: { status: 'SUCCESS', createdAt: { gte: weekAgo } }, _count: true }),
-        prisma.payment.groupBy({ by: ['userId'], where: { status: 'SUCCESS', createdAt: { gte: weekAgo } }, _count: true, having: { userId: { _count: { gte: 2 } } } }),
+        prisma.user.count({ where: { role: 'STUDENT', createdAt: rangeFilter } }),
+        prisma.payment.groupBy({ by: ['userId'], where: { status: 'SUCCESS', createdAt: rangeFilter }, _count: true }),
+        prisma.payment.groupBy({ by: ['userId'], where: { status: 'SUCCESS', createdAt: rangeFilter }, _count: true, having: { userId: { _count: { gte: 2 } } } }),
         prisma.payment.groupBy({
           by: ['dealId'],
-          where: { status: 'SUCCESS', createdAt: { gte: weekAgo }, dealId: { not: null } },
+          where: { status: 'SUCCESS', createdAt: rangeFilter, dealId: { not: null } },
           _count: true,
           orderBy: { _count: { dealId: 'desc' } },
           take: 5,
@@ -69,22 +75,23 @@ export const adminController = {
       }) : [];
       const dealMap = new Map(dealNames.map(d => [d.id, d]));
 
-      const firstPurchaseRate = signupsThisWeek > 0 ? Math.round((buyersThisWeek.length / signupsThisWeek) * 100) : 0;
-      const repeatRate = buyersThisWeek.length > 0 ? Math.round((repeatBuyers.length / buyersThisWeek.length) * 100) : 0;
+      const firstPurchaseRate = signupsInRange > 0 ? Math.round((buyersInRange.length / signupsInRange) * 100) : 0;
+      const repeatRate = buyersInRange.length > 0 ? Math.round((repeatBuyers.length / buyersInRange.length) * 100) : 0;
 
       // High-priority analytics
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
       const [revenueToday, revenueWeek, revenueMonth, avgOrder, topVendors, deadDeals, categoryRevenue] = await Promise.all([
         prisma.payment.aggregate({ where: { status: 'SUCCESS', paidAt: { gte: today } }, _sum: { amount: true } }),
         prisma.payment.aggregate({ where: { status: 'SUCCESS', paidAt: { gte: weekAgo } }, _sum: { amount: true } }),
         prisma.payment.aggregate({ where: { status: 'SUCCESS', paidAt: { gte: monthStart } }, _sum: { amount: true } }),
         prisma.payment.aggregate({ where: { status: 'SUCCESS' }, _avg: { amount: true } }),
         prisma.$queryRaw<{ vendorId: string; businessName: string; revenue: bigint; count: bigint }[]>`
-          SELECT v.id as "vendorId", v."businessName", COALESCE(SUM(p."vendorAmount"), 0) as revenue, COUNT(p.id) as count
+          SELECT v.id as "vendorId", v."businessName", v."logoUrl", COALESCE(SUM(p."vendorAmount"), 0) as revenue, COUNT(p.id) as count
           FROM "Vendor" v
           LEFT JOIN "Deal" d ON d."vendorId" = v.id
-          LEFT JOIN "Payment" p ON p."dealId" = d.id AND p.status = 'SUCCESS'
-          GROUP BY v.id, v."businessName"
+          LEFT JOIN "Payment" p ON p."dealId" = d.id AND p.status = 'SUCCESS' AND p."createdAt" >= ${rangeStart}
+          GROUP BY v.id, v."businessName", v."logoUrl"
           ORDER BY revenue DESC LIMIT 5
         `,
         prisma.deal.count({ where: { isActive: true, expiresAt: { gt: new Date() }, payments: { none: { status: 'SUCCESS' } } } }),
@@ -109,10 +116,13 @@ export const adminController = {
           totalTransactions,
           totalRevenue: revenueAgg._sum.amount ?? 0,
           redemptionRate: totalVouchers > 0 ? Math.round((redeemedCount / totalVouchers) * 100) : 0,
+          // Time range
+          range,
+          rangeStart: rangeStart.toISOString(),
           // Growth metrics
           signupsToday,
-          signupsThisWeek,
-          buyersThisWeek: buyersThisWeek.length,
+          signupsInRange: signupsInRange,
+          buyersInRange: buyersInRange.length,
           repeatBuyers: repeatBuyers.length,
           firstPurchaseRate,
           repeatRate,
@@ -128,7 +138,7 @@ export const adminController = {
           revenueThisMonth: revenueMonth._sum.amount ?? 0,
           avgOrderValue: Math.round(avgOrder._avg.amount ?? 0),
           // Vendor performance
-          topVendors: topVendors.map(v => ({ vendorId: v.vendorId, name: v.businessName, revenue: Number(v.revenue), sales: Number(v.count) })),
+          topVendors: topVendors.map(v => ({ vendorId: v.vendorId, name: v.businessName, logoUrl: (v as any).logoUrl ?? null, revenue: Number(v.revenue), sales: Number(v.count) })),
           deadDeals,
           // Category breakdown
           categoryRevenue: categoryRevenue.map(c => ({ category: c.category, revenue: Number(c.revenue), sales: Number(c.count) })),
@@ -765,10 +775,30 @@ export const adminController = {
   async addDealToCampaign(req: Request, res: Response, next: NextFunction) {
     try {
       const campaignId = req.params.campaignId as string;
-      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, tags } = req.body;
-
       const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
       if (!campaign) throw new AppError(404, 'Campaign not found');
+
+      // Link existing deal to campaign
+      if (req.body.existingDealId) {
+        const updated = await prisma.deal.update({
+          where: { id: req.body.existingDealId },
+          data: {
+            campaignId,
+            featuredSection: campaign.featuredSection,
+            dailyStart: campaign.dailyStart,
+            dailyEnd: campaign.dailyEnd,
+            previewStart: campaign.previewStart,
+            activeDays: campaign.activeDays,
+            isRecurring: !!campaign.dailyStart,
+            isActive: campaign.status === 'PUBLISHED' ? true : undefined,
+          },
+          include: { vendor: { select: { businessName: true } } },
+        });
+        res.status(201).json({ success: true, data: { id: updated.id, title: updated.title, vendorName: updated.vendor.businessName } });
+        return;
+      }
+
+      const { vendorId, title, description, category, imageUrl, originalPrice, studentPrice, totalQuantity, maxPerUser, startsAt, expiresAt, tags } = req.body;
 
       const deal = await prisma.deal.create({
         data: {
@@ -776,7 +806,7 @@ export const adminController = {
           imageUrl: imageUrl || null, originalPrice, studentPrice,
           totalQuantity, remainingQty: totalQuantity, maxPerUser: maxPerUser ?? 1,
           startsAt: new Date(startsAt), expiresAt: new Date(expiresAt),
-          isActive: false, // stays inactive until campaign is published
+          isActive: campaign.status === 'PUBLISHED', // auto-activate if campaign is already live
           isFeatured: !!campaign.featuredSection,
           featuredSection: campaign.featuredSection,
           dailyStart: campaign.dailyStart, dailyEnd: campaign.dailyEnd,

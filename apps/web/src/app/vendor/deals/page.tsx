@@ -63,6 +63,19 @@ export default function VendorDealsPage() {
 
   function fmt(kobo: number) { return `₦${(kobo / 100).toLocaleString("en-NG")}`; }
 
+  const [uploading, setUploading] = useState(false);
+  async function uploadImage(file: File) {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("folder", "buzzpay/deals");
+      const res = await api.post("/upload/image", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      setForm(f => ({ ...f, imageUrl: res.data.data.url }));
+    } catch { alert("Upload failed"); }
+    setUploading(false);
+  }
+
   function statusBadge(status: string) {
     const styles: Record<string, { bg: string; color: string }> = {
       DRAFT: { bg: "#FFF3E0", color: "#E65100" },
@@ -257,9 +270,27 @@ export default function VendorDealsPage() {
                 <p className="text-[10px] mt-1" style={{ color: "var(--color-text-muted)" }}>Choose the best category so students can find your deal easily.</p>
               </div>
 
-              <Field label="Photo Link (optional)" value={form.imageUrl} onChange={v => setForm(f => ({ ...f, imageUrl: v }))}
-                placeholder="Paste an image URL here"
-                hint="Deals with photos get 3x more sales. Paste a link to a photo of your product." />
+              <div>
+                <label className="text-[11px] font-semibold uppercase block mb-1" style={{ color: "var(--color-text-muted)" }}>Product Photo</label>
+                {form.imageUrl ? (
+                  <div className="relative rounded-xl overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+                    <img src={form.imageUrl} alt="Deal" className="w-full h-32 object-cover" />
+                    <button type="button" onClick={() => setForm(f => ({ ...f, imageUrl: "" }))}
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
+                      style={{ background: "rgba(0,0,0,0.6)" }}>×</button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center py-6 rounded-xl cursor-pointer"
+                    style={{ background: "var(--color-base)", border: "2px dashed var(--color-border)" }}>
+                    <span className="text-[13px] font-semibold" style={{ color: uploading ? "var(--color-text-muted)" : "var(--color-primary)" }}>
+                      {uploading ? "Uploading..." : "📷 Tap to upload photo"}
+                    </span>
+                    <span className="text-[10px] mt-1" style={{ color: "var(--color-text-muted)" }}>JPG, PNG — max 5MB. Deals with photos get 3x more sales.</span>
+                    <input type="file" accept="image/*" className="hidden" disabled={uploading}
+                      onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]); }} />
+                  </label>
+                )}
+              </div>
 
               {/* Section 2: Pricing */}
               <SectionLabel title="How much?" />

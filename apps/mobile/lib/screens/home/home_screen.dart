@@ -238,16 +238,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } catch (_) {}
   }
 
+  bool _verificationSnackShown = false;
+
   void _startVerificationPoller() {
     final isVerified = ref.read(authProvider).user?.isVerified ?? false;
     if (isVerified) return; // Already verified, no need to poll
 
     _verificationPoller = Timer.periodic(const Duration(seconds: 30), (_) async {
-      if (!mounted) return;
+      if (!mounted || _verificationSnackShown) return;
       await ref.read(authProvider.notifier).fetchProfile();
       final nowVerified = ref.read(authProvider).user?.isVerified ?? false;
       if (nowVerified) {
         _verificationPoller?.cancel();
+        _verificationSnackShown = true;
         if (mounted) {
           HapticFeedback.heavyImpact();
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -630,7 +633,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Image.asset('assets/icons/flame_3d.png', width: 22, height: 22,
                                 errorBuilder: (_, __, ___) => const Text('🔥', style: TextStyle(fontSize: 18))),
                               const SizedBox(width: 6),
-                              Text(sectionName, style: Theme.of(context).textTheme.headlineSmall),
+                              Flexible(child: Text(sectionName, style: Theme.of(context).textTheme.headlineSmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
                               const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

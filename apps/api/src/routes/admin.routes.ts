@@ -22,6 +22,48 @@ router.delete('/deals/:id', adminController.deleteDeal);
 router.get('/campaigns', adminController.listCampaigns);
 router.post('/campaigns', adminController.createCampaign);
 router.post('/campaigns/:campaignId/deals', adminController.addDealToCampaign);
+router.put('/campaigns/:id', async (req, res, next) => {
+  try {
+    const { name, featuredSection, dailyStart, dailyEnd, previewStart, activeDays } = req.body;
+    const updated = await prisma.campaign.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(featuredSection !== undefined && { featuredSection }),
+        ...(dailyStart !== undefined && { dailyStart }),
+        ...(dailyEnd !== undefined && { dailyEnd }),
+        ...(previewStart !== undefined && { previewStart }),
+        ...(activeDays && { activeDays }),
+      },
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+});
+router.post('/campaigns/:id/sync', async (req, res, next) => {
+  try {
+    const campaign = await prisma.campaign.findUnique({ where: { id: req.params.id } });
+    if (!campaign) { res.status(404).json({ success: false, message: 'Not found' }); return; }
+
+    // Extend expiresAt for expired deals to 30 days from now
+    const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    const result = await prisma.deal.updateMany({
+      where: { campaignId: campaign.id },
+      data: {
+        featuredSection: campaign.featuredSection,
+        dailyStart: campaign.dailyStart,
+        dailyEnd: campaign.dailyEnd,
+        previewStart: campaign.previewStart,
+        activeDays: campaign.activeDays,
+        isRecurring: !!campaign.dailyStart,
+        isActive: campaign.status === 'PUBLISHED',
+        expiresAt: newExpiry,
+        startsAt: new Date(),
+      },
+    });
+    res.json({ success: true, data: { updated: result.count } });
+  } catch (err) { next(err); }
+});
 router.post('/campaigns/:id/publish', adminController.publishCampaign);
 router.delete('/campaigns/:id', adminController.deleteCampaign);
 

@@ -83,8 +83,30 @@ export default function VendorProfilePage() {
             <Field label="Phone Number" value={form.businessPhone} onChange={v => setForm(f => ({ ...f, businessPhone: v }))}
               hint="Students may call if they can't find your store" required />
 
-            <Field label="Logo URL (optional)" value={form.logoUrl} onChange={v => setForm(f => ({ ...f, logoUrl: v }))}
-              hint="Paste a link to your logo image" />
+            <div>
+              <label className="text-[11px] font-semibold uppercase block mb-1" style={{ color: "var(--color-text-muted)" }}>Business Logo</label>
+              {form.logoUrl ? (
+                <div className="flex items-center gap-3">
+                  <img src={form.logoUrl} alt="Logo" className="w-16 h-16 rounded-xl object-cover" style={{ border: "1px solid var(--color-border)" }} />
+                  <button type="button" onClick={() => setForm(f => ({ ...f, logoUrl: "" }))}
+                    className="text-[12px] font-semibold" style={{ color: "var(--color-error)" }}>Remove</button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center py-4 rounded-xl cursor-pointer"
+                  style={{ background: "var(--color-base)", border: "2px dashed var(--color-border)" }}>
+                  <span className="text-[13px] font-semibold" style={{ color: "var(--color-primary)" }}>📷 Upload logo</span>
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={async e => {
+                      if (!e.target.files?.[0]) return;
+                      try {
+                        const fd = new FormData(); fd.append("image", e.target.files[0]); fd.append("folder", "buzzpay/logos");
+                        const res = await api.post("/upload/image", fd, { headers: { "Content-Type": "multipart/form-data" } });
+                        setForm(f => ({ ...f, logoUrl: res.data.data.url }));
+                      } catch { alert("Upload failed"); }
+                    }} />
+                </label>
+              )}
+            </div>
 
             <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
               <p className="text-[13px] font-bold mb-3" style={{ color: "var(--color-text)" }}>Opening Hours (WAT)</p>
