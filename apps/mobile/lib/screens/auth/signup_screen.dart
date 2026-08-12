@@ -17,6 +17,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _nameController = TextEditingController();
+  final _referralController = TextEditingController();
   String _selectedCampus = 'UNILAG - Akoka';
   String _phone = '';
   bool _loading = false;
@@ -70,7 +71,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       final response = await api.post('/auth/phone/complete-signup', data: {
         'phone': _phone,
         'fullName': _nameController.text.trim(),
-        'university': _selectedCampus.split(' - ').first, // "UNILAG"
+        'university': _selectedCampus.split(' - ').first,
+        if (_referralController.text.trim().isNotEmpty)
+          'referralCode': _referralController.text.trim().toUpperCase(),
       });
 
       final data = response.data['data'];
@@ -150,6 +153,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 items: _campuses.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (v) => setState(() => _selectedCampus = v ?? _campuses.first),
               ),
+
+              // Referral code (optional)
+              const SizedBox(height: 16),
+              TextField(
+                controller: _referralController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: _softInput('Referral code (optional)', icon: Icons.card_giftcard),
+              ),
+              const SizedBox(height: 4),
+              Text('Have a friend\'s code? Enter it for a bonus!',
+                style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
 
               if (_error != null) ...[
                 const SizedBox(height: 10),

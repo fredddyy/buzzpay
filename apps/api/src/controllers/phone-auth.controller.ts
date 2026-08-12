@@ -38,6 +38,14 @@ export const phoneAuthController = {
         return;
       }
       const result = await phoneAuthService.completeSignup(phone, fullName, university);
+
+      // Generate referral code + apply referral if provided
+      const { referralService } = await import('../services/referral.service.js');
+      await referralService.generateCode(result.user.id);
+      if (req.body.referralCode) {
+        try { await referralService.applyCode(result.user.id, req.body.referralCode); } catch {}
+      }
+
       res.status(201).json({ success: true, data: result });
     } catch (err) {
       next(err);

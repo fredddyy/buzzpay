@@ -10,6 +10,7 @@ import { AppError } from '../middleware/error.js';
 import { realtimeService } from './realtime.service.js';
 import { fcmService } from './fcm.service.js';
 import { streakService } from './streak.service.js';
+import { referralService } from './referral.service.js';
 import { analyticsService } from './analytics.service.js';
 import { VOUCHER_EXPIRY_HOURS, VOUCHER_CODE_LENGTH } from '@buzzpay/shared';
 
@@ -216,6 +217,9 @@ export const paymentService = {
     if (streakResult.milestone) {
       fcmService.sendToUser(payment.userId, `🔥 ${streakResult.currentStreak}-day streak!`, `You've bought deals ${streakResult.currentStreak} days in a row. Keep it up!`, { type: 'streak_milestone' }).catch(() => {});
     }
+
+    // Referral — check if this is referred user's first purchase
+    referralService.onFirstPurchase(payment.userId).catch(() => {});
 
     // Push notification
     const dealTitle = payment.orderItems?.length

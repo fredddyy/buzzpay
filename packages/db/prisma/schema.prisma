@@ -79,6 +79,7 @@ model Student {
   verificationStatus  VerificationStatus @default(PENDING)
   verifiedAt          DateTime?
   rejectionReason     String?
+  referralFirstPurchaseDone Boolean    @default(false)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 

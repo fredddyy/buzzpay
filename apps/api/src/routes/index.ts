@@ -133,6 +133,25 @@ router.post('/wallet/pay', authenticate, async (req, res) => {
   }
 });
 
+// Referrals
+import { referralService } from '../services/referral.service.js';
+
+router.get('/referral/my-code', authenticate, async (req, res) => {
+  const stats = await referralService.getStats(req.user!.userId);
+  res.json({ success: true, data: stats });
+});
+
+router.post('/referral/apply', authenticate, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) { res.status(400).json({ success: false, message: 'Referral code required' }); return; }
+    const result = await referralService.applyCode(req.user!.userId, code);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Invalid code' });
+  }
+});
+
 // Student loyalty cards
 import { loyaltyService } from '../services/loyalty.service.js';
 router.get('/users/loyalty', authenticate, async (req, res) => {

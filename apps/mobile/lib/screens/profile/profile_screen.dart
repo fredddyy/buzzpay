@@ -20,11 +20,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _totalSpent = 0;
   int _dealCount = 0;
   String? _favoriteVendor;
+  String? _referralCode;
+  int _referralCount = 0;
+  int _untilReward = 3;
 
   @override
   void initState() {
     super.initState();
     _loadSavings();
+    _loadReferral();
+  }
+
+  Future<void> _loadReferral() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/referral/my-code');
+      final data = response.data['data'];
+      if (mounted && data != null) {
+        setState(() {
+          _referralCode = data['code'] as String?;
+          _referralCount = data['referralCount'] as int? ?? 0;
+          _untilReward = data['untilReward'] as int? ?? 3;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadSavings() async {
@@ -253,10 +272,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     const SizedBox(height: 12),
 
-                    // Invite — gradient gift card
+                    // Referral card
                     GestureDetector(
                       onTap: () => SharePlus.instance.share(ShareParams(
-                        text: 'I\'m saving money on campus deals with BuzzPay! 🔥\n\nDownload it and stop paying full price 📲 https://buzzpay.ng',
+                        text: 'Get a FREE meal on BuzzPay! 🍔🔥\n\nUse my code ${_referralCode ?? "BUZZPAY"} when you sign up.\nInvite 3 friends and YOU get a free meal too!\n\n📲 https://buzzpay.ng',
                       )),
                       child: Container(
                       width: double.infinity,
@@ -275,17 +294,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       child: Row(
                         children: [
-                          Image.asset('assets/icons/gift_3d.png', width: 36, height: 36),
+                          Image.asset('assets/icons/gift_3d.png', width: 36, height: 36,
+                            errorBuilder: (_, __, ___) => const Text('🎁', style: TextStyle(fontSize: 28))),
                           const SizedBox(width: 14),
-                          const Expanded(
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Invite a friend',
+                                const Text('Invite 3 friends, get FREE meal',
                                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                                SizedBox(height: 2),
-                                Text('You both get ₦200 off your next deal',
-                                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                const SizedBox(height: 4),
+                                if (_referralCode != null)
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(_referralCode!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 2, color: AppColors.primary)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text('$_referralCount/3 · ${_untilReward == 0 ? "🎉 Reward ready!" : "$_untilReward more"}',
+                                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                    ],
+                                  )
+                                else
+                                  const Text('Tap to share your code',
+                                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                               ],
                             ),
                           ),
