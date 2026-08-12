@@ -75,46 +75,78 @@ export const referralService = {
       { type: 'referral_progress' }).catch(() => {});
   },
 
-  /** Grant free meal voucher to referrer */
+  /** Notify referrer they can pick their free meal */
   async grantFreeMeal(userId: string, totalReferrals: number) {
-    // Find the admin-configured reward deal
-    // Look for a deal tagged with 'referral-reward' or use the most popular deal
-    const rewardDeal = await prisma.deal.findFirst({
+    // Don't auto-create voucher — let student choose from available rewards
+    fcmService.sendToUser(userId, '🎉 FREE MEAL unlocked!',
+      `You referred ${totalReferrals} friends! Pick your free meal now — tap to choose!`,
+      { type: 'referral_reward_pick' }).catch(() => {});
+  },
+
+  /** Get available reward deals for the student to choose from */
+  async getRewardOptions() {
+    const deals = await prisma.deal.findMany({
       where: {
         isActive: true,
         expiresAt: { gt: new Date() },
         remainingQty: { gt: 0 },
         tags: { has: 'referral-reward' },
       },
-    }) || await prisma.deal.findFirst({
-      where: { isActive: true, expiresAt: { gt: new Date() }, remainingQty: { gt: 0 }, category: 'FOOD' },
-      orderBy: { remainingQty: 'desc' },
+      include: { vendor: { select: { businessName: true, logoUrl: true, businessAddress: true } } },
+      take: 5,
     });
 
-    if (!rewardDeal) return; // No reward deal available
+    return deals.map(d => ({
+      id: d.id,
+      title: d.title,
+      vendorName: d.vendor.businessName,
+      vendorLogo: d.vendor.logoUrl,
+      vendorAddress: d.vendor.businessAddress,
+      imageUrl: d.imageUrl,
+      originalPrice: d.originalPrice,
+      studentPrice: d.studentPrice,
+    }));
+  },
 
+  /** Student picks their free meal — create the voucher */
+  async claimReward(userId: string, dealId: string) {
     const user = await prisma.user.findUnique({ where: { id: userId }, include: { student: true } });
-    if (!user?.student) return;
+    if (!user?.student) throw new Error('Not a student');
 
-    // Create a free voucher (no payment)
+    // Check they have unclaimed rewards
+    const rewardsEarned = Math.floor(user.referralCount / 3);
+    const rewardsClaimed = await prisma.voucher.count({
+      where: { studentId: user.student.id, paymentId: '' },
+    });
+
+    if (rewardsClaimed >= rewardsEarned) throw new Error('No unclaimed rewards');
+
+    // Verify deal is a reward deal
+    const deal = await prisma.deal.findFirst({
+      where: { id: dealId, tags: { has: 'referral-reward' }, isActive: true, remainingQty: { gt: 0 } },
+    });
+    if (!deal) throw new Error('This deal is not available as a reward');
+
     const voucherCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days to redeem
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await prisma.voucher.create({
+    const voucher = await prisma.voucher.create({
       data: {
         studentId: user.student.id,
-        dealId: rewardDeal.id,
-        paymentId: '', // No payment — it's a reward
+        dealId: deal.id,
+        paymentId: '',
         code: voucherCode(8),
         qrData: uuidv4(),
         expiresAt,
       },
     });
 
-    fcmService.sendToUser(userId, '🎉 FREE MEAL unlocked!',
-      `You referred ${totalReferrals} friends! Your free ${rewardDeal.title} voucher is ready. Check your vouchers tab!`,
-      { type: 'referral_reward' }).catch(() => {});
+    fcmService.sendToUser(userId, '🎁 Free meal claimed!',
+      `Your free ${deal.title} voucher is ready. Show QR at the vendor!`,
+      { type: 'referral_claimed' }).catch(() => {});
+
+    return { voucherId: voucher.id, code: voucher.code, dealTitle: deal.title };
   },
 
   /** Get referral stats for a user */

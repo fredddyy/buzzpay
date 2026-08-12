@@ -141,6 +141,22 @@ router.get('/referral/my-code', authenticate, async (req, res) => {
   res.json({ success: true, data: stats });
 });
 
+router.get('/referral/rewards', authenticate, async (_req, res) => {
+  const options = await referralService.getRewardOptions();
+  res.json({ success: true, data: options });
+});
+
+router.post('/referral/claim', authenticate, async (req, res) => {
+  try {
+    const { dealId } = req.body;
+    if (!dealId) { res.status(400).json({ success: false, message: 'dealId required' }); return; }
+    const result = await referralService.claimReward(req.user!.userId, dealId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Failed' });
+  }
+});
+
 router.post('/referral/apply', authenticate, async (req, res) => {
   try {
     const { code } = req.body;

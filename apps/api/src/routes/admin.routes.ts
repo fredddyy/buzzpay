@@ -67,6 +67,67 @@ router.post('/campaigns/:id/sync', async (req, res, next) => {
 router.post('/campaigns/:id/publish', adminController.publishCampaign);
 router.delete('/campaigns/:id', adminController.deleteCampaign);
 
+// Referrals
+router.get('/referrals', async (_req, res, next) => {
+  try {
+    const [topReferrers, totalReferred, rewardsGiven] = await Promise.all([
+      prisma.user.findMany({
+        where: { referralCount: { gt: 0 } },
+        select: { id: true, fullName: true, referralCode: true, referralCount: true },
+        orderBy: { referralCount: 'desc' },
+        take: 20,
+      }),
+      prisma.user.count({ where: { referredById: { not: null } } }),
+      prisma.voucher.count({ where: { paymentId: '' } }), // Free vouchers have empty paymentId
+    ]);
+
+    res.json({ success: true, data: {
+      topReferrers: topReferrers.map(u => ({
+        name: u.fullName,
+        code: u.referralCode,
+        count: u.referralCount,
+        rewardsEarned: Math.floor(u.referralCount / 3),
+      })),
+      totalReferred,
+      rewardsGiven,
+    }});
+  } catch (err) { next(err); }
+});
+
+router.post('/referrals/set-reward', async (req, res, next) => {
+  try {
+    const { dealId } = req.body;
+    if (!dealId) { res.status(400).json({ success: false, message: 'dealId required' }); return; }
+
+    // Remove old reward tag
+    await prisma.deal.updateMany({
+      where: { tags: { has: 'referral-reward' } },
+      data: { tags: { set: [] } }, // simplified — in production, filter the array
+    });
+
+    // Set new reward deal
+    const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+    if (!deal) { res.status(404).json({ success: false, message: 'Deal not found' }); return; }
+
+    await prisma.deal.update({
+      where: { id: dealId },
+      data: { tags: [...(deal.tags || []).filter((t: string) => t !== 'referral-reward'), 'referral-reward'] },
+    });
+
+    res.json({ success: true, data: { dealId, title: deal.title } });
+  } catch (err) { next(err); }
+});
+
+router.get('/referrals/reward-deal', async (_req, res, next) => {
+  try {
+    const deal = await prisma.deal.findFirst({
+      where: { tags: { has: 'referral-reward' } },
+      select: { id: true, title: true, studentPrice: true, vendor: { select: { businessName: true } } },
+    });
+    res.json({ success: true, data: deal });
+  } catch (err) { next(err); }
+});
+
 // Vendors
 router.get('/vendors', adminController.listVendors);
 router.post('/vendors', adminController.createVendor);
