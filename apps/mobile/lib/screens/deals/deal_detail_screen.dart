@@ -606,7 +606,7 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                           padding: EdgeInsets.zero,
                         ),
                         child: Text(
-                          deal.isSoldOut ? 'Sold Out' : 'Pay ${_formatNaira(deal.studentPrice * _qty)}${deal.originalPrice != deal.studentPrice ? ' · Save ${_formatNaira((deal.originalPrice - deal.studentPrice) * _qty)}' : ''}',
+                          deal.isSoldOut ? 'Sold Out' : deal.studentPrice == 0 ? 'Claim Free Deal' : 'Pay ${_formatNaira(deal.studentPrice * _qty)}${deal.originalPrice != deal.studentPrice ? ' · Save ${_formatNaira((deal.originalPrice - deal.studentPrice) * _qty)}' : ''}',
                           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                       ),

@@ -70,6 +70,7 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
         closesAt: data['closesAt'] ?? '21:00',
         buzzTags: const ['Campus Favorite'],
         isFollowed: false,
+        studentDiscount: (data['studentDiscount'] as num?)?.toDouble() ?? 0,
       );
       _deals = ((data['deals'] ?? []) as List).map((d) => Deal.fromJson(d)).toList();
     } catch (_) {
@@ -294,41 +295,70 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen>
                       ),
                       // Follow — inline toggle, no snackbar
                       const SizedBox(height: 14),
-                      GestureDetector(
-                        onTap: _toggleFollow,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: _isFollowed
-                                ? AppColors.primary.withValues(alpha: 0.06)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _isFollowed ? Icons.notifications_active : Icons.notifications_none,
-                                size: 16,
-                                color: _isFollowed ? AppColors.primary : AppColors.textSecondary,
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: _toggleFollow,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: _isFollowed
+                                    ? AppColors.primary.withValues(alpha: 0.06)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              const SizedBox(width: 5),
-                              Text(
-                                _isFollowed ? 'Following' : 'Follow for deal alerts',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: _isFollowed ? FontWeight.w600 : FontWeight.w500,
-                                  color: _isFollowed ? AppColors.primary : AppColors.textSecondary,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isFollowed ? Icons.notifications_active : Icons.notifications_none,
+                                    size: 16,
+                                    color: _isFollowed ? AppColors.primary : AppColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    _isFollowed ? 'Following' : 'Follow for deal alerts',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: _isFollowed ? FontWeight.w600 : FontWeight.w500,
+                                      color: _isFollowed ? AppColors.primary : AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  if (_isFollowed) ...[
+                                    const SizedBox(width: 4),
+                                    Icon(Icons.check, size: 14, color: AppColors.primary),
+                                  ],
+                                ],
                               ),
-                              if (_isFollowed) ...[
-                                const SizedBox(width: 4),
-                                Icon(Icons.check, size: 14, color: AppColors.primary),
-                              ],
-                            ],
+                            ),
                           ),
-                        ),
+                          if (vendor.studentDiscount > 0) ...[
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: () => context.push(
+                                '/vendor/${vendor.id}/pay',
+                                extra: {
+                                  'vendorName': vendor.businessName,
+                                  'discountPercent': vendor.studentDiscount * 100,
+                                },
+                              ),
+                              icon: const Icon(Icons.payments_outlined, size: 15, color: Colors.white),
+                              label: Text(
+                                'Pay Here · ${(vendor.studentDiscount * 100).round()}% off',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF059669),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                elevation: 0,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),

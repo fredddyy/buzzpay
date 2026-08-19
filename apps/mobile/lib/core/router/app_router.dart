@@ -17,6 +17,7 @@ import '../../screens/vouchers/voucher_detail_screen.dart';
 import '../../screens/vouchers/vouchers_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/vendor/vendor_profile_screen.dart';
+import '../../screens/vendor/pay_at_vendor_screen.dart';
 import '../../screens/cart/cart_screen.dart';
 import '../../screens/cart/cart_checkout_screen.dart';
 import '../../screens/search/search_screen.dart';
@@ -141,6 +142,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/vendor/:id',
         builder: (context, state) =>
             VendorProfileScreen(vendorId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/vendor/:id/pay',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return PayAtVendorScreen(
+            vendorId: state.pathParameters['id']!,
+            vendorName: extra['vendorName'] as String? ?? 'Vendor',
+            discountPercent: (extra['discountPercent'] as num?)?.toDouble() ?? 0,
+          );
+        },
       ),
       GoRoute(
         path: '/voucher/:id',

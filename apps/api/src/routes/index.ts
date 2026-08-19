@@ -7,6 +7,7 @@ import dealRoutes from './deal.routes.js';
 import paymentRoutes from './payment.routes.js';
 import voucherRoutes from './voucher.routes.js';
 import adminRoutes from './admin.routes.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -495,6 +496,139 @@ router.get('/vendor/stats', authenticate, async (req, res) => {
   } catch { res.status(500).json({ success: false, message: 'Server error' }); }
 });
 
+// Vendor direct pay — student pays at vendor with discount
+router.post('/payments/vendor-direct', authenticate, async (req, res) => {
+  try {
+    const { vendorId, amount } = req.body;
+    if (!vendorId || !amount) { res.status(400).json({ success: false, message: 'vendorId and amount required' }); return; }
+    if (amount < 10000) { res.status(400).json({ success: false, message: 'Minimum amount is ₦100' }); return; }
+
+    const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
+    if (!vendor) { res.status(404).json({ success: false, message: 'Vendor not found' }); return; }
+    if (!vendor.isActive) { res.status(400).json({ success: false, message: 'Vendor is not active' }); return; }
+    if (vendor.studentDiscount <= 0) { res.status(400).json({ success: false, message: 'This vendor has no student discount' }); return; }
+
+    const discountAmount = Math.round(amount * vendor.studentDiscount);
+    const studentPays = amount - discountAmount;
+    const commission = Math.round(studentPays * vendor.commissionRate);
+    const vendorReceives = studentPays - commission;
+
+    // Initialize Paystack payment
+    const { nanoid } = await import('nanoid');
+    const reference = `vdp_${nanoid(16)}`;
+
+    const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, select: { email: true, phone: true } });
+
+    const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.PAYSTACK_SECRET_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: user?.email || `${req.user!.userId}@buzzpay.ng`,
+        amount: studentPays,
+        reference,
+        channels: ['bank_transfer', 'card'],
+        metadata: {
+          type: 'vendor_direct',
+          vendorId,
+          originalAmount: amount,
+          discountAmount,
+          studentPays,
+        },
+      }),
+    });
+
+    const paystackData = await paystackRes.json() as { status: boolean; data?: { authorization_url: string } };
+    if (!paystackData.status) {
+      res.status(500).json({ success: false, message: 'Payment initialization failed' }); return;
+    }
+
+    // Create payment record
+    const payment = await prisma.payment.create({
+      data: {
+        userId: req.user!.userId,
+        vendorId,
+        amount: studentPays,
+        commission,
+        vendorAmount: vendorReceives,
+        paystackReference: reference,
+        status: 'PENDING',
+      },
+    });
+
+    res.json({ success: true, data: {
+      paymentId: payment.id,
+      reference,
+      authorizationUrl: paystackData.data!.authorization_url,
+      originalAmount: amount,
+      discountAmount,
+      discountPercent: Math.round(vendor.studentDiscount * 100),
+      studentPays,
+      commission,
+      vendorReceives,
+      vendorName: vendor.businessName,
+    }});
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Payment failed';
+    res.status(500).json({ success: false, message: msg });
+  }
+});
+
+// Vendor direct pay — confirm (called after Paystack callback)
+router.post('/payments/vendor-direct/confirm', authenticate, async (req, res) => {
+  try {
+    const { reference } = req.body;
+    if (!reference) { res.status(400).json({ success: false, message: 'reference required' }); return; }
+
+    const payment = await prisma.payment.findFirst({ where: { paystackReference: reference, userId: req.user!.userId } });
+    if (!payment) { res.status(404).json({ success: false, message: 'Payment not found' }); return; }
+    if (payment.status === 'SUCCESS') { res.json({ success: true, data: { status: 'already_confirmed' } }); return; }
+
+    // Verify with Paystack
+    const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: { 'Authorization': `Bearer ${env.PAYSTACK_SECRET_KEY}` },
+    });
+    const verifyData = await verifyRes.json() as { data?: { status: string; metadata?: { originalAmount?: number } } };
+
+    if (verifyData.data?.status === 'success') {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: 'SUCCESS', paidAt: new Date() },
+      });
+
+      // Track analytics
+      const { analyticsService } = await import('../services/analytics.service.js');
+      analyticsService.track('vendor_direct_pay', { userId: req.user!.userId, metadata: { amount: payment.amount, vendorId: payment.vendorId } });
+
+      const vendor = payment.vendorId
+        ? await prisma.vendor.findUnique({ where: { id: payment.vendorId } })
+        : null;
+
+      res.json({ success: true, data: {
+        status: 'confirmed',
+        originalAmount: verifyData.data.metadata?.originalAmount,
+        studentPays: payment.amount,
+        vendorName: vendor?.businessName,
+      }});
+    } else {
+      res.json({ success: true, data: { status: 'pending' } });
+    }
+  } catch { res.status(500).json({ success: false, message: 'Verification failed' }); }
+});
+
+// Vendors offering student discount (public)
+router.get('/vendors/discount', async (_req, res) => {
+  try {
+    const vendors = await prisma.vendor.findMany({
+      where: { isActive: true, studentDiscount: { gt: 0 } },
+      select: { id: true, businessName: true, logoUrl: true, businessAddress: true, studentDiscount: true },
+    });
+    res.json({ success: true, data: vendors });
+  } catch { res.status(500).json({ success: false, message: 'Server error' }); }
+});
+
 // Trending vendors (must be before /vendors/:id)
 router.get('/vendors/trending', async (_req, res) => {
   const vendors = await prisma.vendor.findMany({
@@ -545,6 +679,7 @@ router.get('/vendors/:id', authenticate, async (req, res) => {
       closesAt: vendor.closesAt,
       isActive: vendor.isActive,
       isTrending: vendor.isTrending,
+      studentDiscount: vendor.studentDiscount,
       ownerName: vendor.user.fullName,
       deals: mappedDeals,
     }});

@@ -14,6 +14,7 @@ class Vendor {
   final List<String> buzzTags;
   final List<Deal> deals;
   final bool isFollowed;
+  final double studentDiscount; // 0.10 = 10% off
 
   Vendor({
     required this.id,
@@ -29,6 +30,7 @@ class Vendor {
     this.buzzTags = const [],
     this.deals = const [],
     this.isFollowed = false,
+    this.studentDiscount = 0,
   });
 
   String get opensAtFormatted => _formatTime(opensAt);
@@ -42,7 +44,7 @@ class Vendor {
     return '${h - 12} PM';
   }
 
-  Vendor copyWith({bool? isFollowed}) => Vendor(
+  Vendor copyWith({bool? isFollowed, double? studentDiscount}) => Vendor(
         id: id,
         businessName: businessName,
         businessAddress: businessAddress,
@@ -56,5 +58,6 @@ class Vendor {
         buzzTags: buzzTags,
         deals: deals,
         isFollowed: isFollowed ?? this.isFollowed,
+        studentDiscount: studentDiscount ?? this.studentDiscount,
       );
 }

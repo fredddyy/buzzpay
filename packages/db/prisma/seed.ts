@@ -54,6 +54,7 @@ async function main() {
       opensAt: '07:00',
       closesAt: '21:00',
       commissionRate: 0.10,
+      studentDiscount: 0.10, // 10% BuzzPay discount
     },
   });
 
@@ -77,6 +78,7 @@ async function main() {
       opensAt: '10:00',
       closesAt: '22:00',
       commissionRate: 0.12,
+      studentDiscount: 0.15, // 15% BuzzPay discount
     },
   });
 

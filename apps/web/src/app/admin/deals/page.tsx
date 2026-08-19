@@ -361,11 +361,30 @@ export default function DealsPage() {
                 <div className="flex justify-between text-[10px] mb-1" style={{ color: "var(--color-text-muted)" }}>
                   <span>{d.remainingQty}</span><span>{d.totalQuantity}</span>
                 </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-surface-hover)" }}>
-                  <div className="h-full rounded-full transition-all" style={{
-                    width: `${stockPct(d) * 100}%`,
-                    background: stockPct(d) < 0.2 ? "var(--color-error)" : "var(--color-primary)",
-                  }} />
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-surface-hover)" }}>
+                    <div className="h-full rounded-full transition-all" style={{
+                      width: `${stockPct(d) * 100}%`,
+                      background: stockPct(d) < 0.2 ? "var(--color-error)" : "var(--color-primary)",
+                    }} />
+                  </div>
+                  {stockPct(d) <= 0.3 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const qty = prompt(`Restock "${d.title}"\nCurrent: ${d.remainingQty}/${d.totalQuantity}\n\nAdd how many?`, "20");
+                        if (!qty || isNaN(Number(qty))) return;
+                        const add = parseInt(qty);
+                        api.put(`/admin/deals/${d.id}`, {
+                          totalQuantity: d.totalQuantity + add,
+                          remainingQty: d.remainingQty + add,
+                        }).then(() => loadDeals()).catch(() => alert("Restock failed"));
+                      }}
+                      title="Restock"
+                      className="px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors hover:opacity-80"
+                      style={{ background: "var(--color-primary)", color: "white" }}
+                    >+</button>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1">

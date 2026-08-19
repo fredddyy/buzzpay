@@ -16,6 +16,7 @@ interface Vendor {
   opensAt: string;
   closesAt: string;
   commissionRate: number;
+  studentDiscount: number;
   dealCount: number;
   isTrending: boolean;
   totalSales: number;
@@ -238,7 +239,15 @@ export default function VendorsPage() {
                       : v.businessName.charAt(0)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{v.businessName}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{v.businessName}</p>
+                      {v.studentDiscount > 0 && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                          style={{ background: "var(--color-success-surface)", color: "var(--color-success)" }}>
+                          {Math.round(v.studentDiscount * 100)}% off
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] truncate" style={{ color: "var(--color-text-muted)" }}>{v.user.email}</p>
                   </div>
                 </div>
@@ -296,6 +305,7 @@ function VendorModal({ vendor, onClose, onSaved }: {
     opensAt: vendor?.opensAt || "08:00",
     closesAt: vendor?.closesAt || "21:00",
     commissionRate: vendor ? (vendor.commissionRate * 100).toString() : "10",
+    studentDiscount: vendor?.studentDiscount || 0,
     email: vendor?.user?.email || "",
     ownerName: vendor?.user?.fullName || "",
     bankName: vendor?.bankName || "",
@@ -317,6 +327,7 @@ function VendorModal({ vendor, onClose, onSaved }: {
       businessPhone: form.businessPhone, campus: form.campus,
       opensAt: form.opensAt, closesAt: form.closesAt,
       commissionRate: parseFloat(form.commissionRate) / 100,
+      studentDiscount: form.studentDiscount,
       isActive: vendor?.isActive ?? true,
       isTrending: vendor?.isTrending ?? false,
       dealCount: vendor?.dealCount ?? 0,
@@ -473,6 +484,21 @@ function VendorModal({ vendor, onClose, onSaved }: {
               <input value={form.accountNumber} onChange={e => update("accountNumber", e.target.value)}
                 placeholder="012****890" style={inputStyle} />
             </div>
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5"
+              style={{ color: "var(--color-text-muted)" }}>
+              Student Discount %
+            </label>
+            <input type="number" min="0" max="50" step="1"
+              value={Math.round((form.studentDiscount || 0) * 100)}
+              onChange={(e) => setForm({ ...form, studentDiscount: parseInt(e.target.value || '0') / 100 })}
+              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+              style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
+              placeholder="e.g. 10" />
+            <p className="text-[10px] mt-1" style={{ color: "var(--color-text-muted)" }}>
+              Students get this % off when paying directly at this vendor via BuzzPay
+            </p>
           </div>
 
           {/* QR Management — edit only */}

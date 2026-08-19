@@ -53,6 +53,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _minuteTimer;
   int _currentStreak = 0;
   bool _purchasedToday = false;
+  List<Map<String, dynamic>> _discountVendors = [];
 
   @override
   void initState() {
@@ -60,6 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Future.microtask(() async {
       await ref.read(dealsProvider.notifier).loadDeals(refresh: true);
       ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
+      _loadDiscountVendors();
     });
     _loadStreak();
     _startVerificationPoller();
@@ -232,6 +234,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } catch (_) {}
   }
 
+  Future<void> _loadDiscountVendors() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/vendors/discount');
+      if (mounted) {
+        setState(() {
+          _discountVendors = List<Map<String, dynamic>>.from(response.data['data'] ?? []);
+        });
+      }
+    } catch (_) {}
+  }
+
   bool _verificationSnackShown = false;
 
   void _startVerificationPoller() {
@@ -288,6 +302,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ref.read(authProvider.notifier).fetchProfile();
                 await ref.read(dealsProvider.notifier).loadDeals(category: _selectedCategory, refresh: true);
                 await ref.read(vouchersProvider.notifier).loadVouchers(status: 'ACTIVE');
+                _loadDiscountVendors();
               },
               child: deals.isLoading && deals.deals.isEmpty
                 ? _shimmerSkeleton()
@@ -402,7 +417,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                          child: _HeroSlider(deals: deals.deals.take(4).toList()),
+                          child: () {
+                            // Featured deals first, then fill with regular deals
+                            final featured = deals.deals.where((d) => d.isFeatured && d.imageUrl != null).toList();
+                            final others = deals.deals.where((d) => !d.isFeatured && d.imageUrl != null).toList();
+                            final heroDeals = [...featured, ...others].take(4).toList();
+                            return _HeroSlider(deals: heroDeals.isNotEmpty ? heroDeals : deals.deals.take(4).toList());
+                          }(),
                         ),
                       ),
 
@@ -525,17 +546,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               else if (remaining.inHours < 24) { timeLabel = 'Ends in ${remaining.inHours}h'; timerColor = const Color(0xFFF97316); }
                               else { timeLabel = 'Ends in ${remaining.inDays}d'; timerColor = const Color(0xFF9CA3AF); }
 
+                              // Stock calculations
+                              final stockPercent = deal.totalQuantity > 0 ? deal.remainingQty / deal.totalQuantity : 1.0;
+                              final isLimitedStock = stockPercent <= 0.3;
+
                               // Determine badge
                               String? badge;
                               Color badgeColor = AppColors.primary;
-                              if (deal.remainingQty <= 3) { badge = '${deal.remainingQty} left!'; badgeColor = const Color(0xFFEF4444); }
+                              if (stockPercent <= 0.1) { badge = '${deal.remainingQty} left!'; badgeColor = const Color(0xFFEF4444); }
                               else if (discount >= 40) { badge = 'Best Value'; }
                               else if (deal.studentPrice <= 50000) { badge = 'Under ₦500'; badgeColor = const Color(0xFF059669); }
 
                               // Urgency flags
                               final isHappyHour = deal.dailyStart != null && deal.dailyEnd != null;
-                              final isLimitedStock = deal.remainingQty <= 10;
-                              final stockPercent = deal.totalQuantity > 0 ? deal.remainingQty / deal.totalQuantity : 1.0;
 
                               // Happy hour time window logic
                               bool isHHLive = false;
@@ -565,7 +588,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               // Skip ended happy hour deals
                               if (isHHEnded) return const SizedBox.shrink();
 
-                              final isUrgent = isHHLive || (isLimitedStock && deal.remainingQty <= 10) || remaining.inHours < 3;
+                              final isUrgent = isHHLive || isLimitedStock || remaining.inHours < 3;
                               final urgentColor = (isHHLive || isHHUpcoming) ? const Color(0xFFF97316) : const Color(0xFFEF4444);
 
                               return _PressableCard(
@@ -645,8 +668,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                 Positioned(top: 8, right: 8,
                                                   child: Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-                                                    child: Text('-$discount%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                                                    decoration: BoxDecoration(
+                                                      color: deal.studentPrice == 0 ? const Color(0xFF059669) : AppColors.primary,
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: Text(
+                                                      deal.studentPrice == 0 ? 'FREE' : '-$discount%',
+                                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                                                    ),
                                                   ),
                                                 ),
                                               // Smart badge top-left
@@ -732,8 +761,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                 crossAxisAlignment: CrossAxisAlignment.baseline,
                                                 textBaseline: TextBaseline.alphabetic,
                                                 children: [
-                                                  Text(deal.formattedStudentPrice,
-                                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                                                  Text(deal.studentPrice == 0 ? 'FREE' : deal.formattedStudentPrice,
+                                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+                                                      color: deal.studentPrice == 0 ? const Color(0xFF059669) : const Color(0xFF111827))),
                                                   const SizedBox(width: 5),
                                                   if (deal.originalPrice != deal.studentPrice)
                                                     Text(deal.formattedOriginalPrice,
@@ -762,6 +792,91 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
+
+                    // ──── STUDENT DISCOUNTS ROW ────
+                    if (_discountVendors.isNotEmpty && _selectedCategory == null) ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                          child: _sectionHeader(context, title: 'BuzzPay Discounts', seeAll: false),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: 72,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: _discountVendors.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 10),
+                            itemBuilder: (context, index) {
+                              final v = _discountVendors[index];
+                              final vendorId = v['id'] as String;
+                              final vendorName = v['businessName'] as String;
+                              final logoUrl = v['logoUrl'] as String?;
+                              final discountPct = (((v['studentDiscount'] as num?) ?? 0) * 100).round();
+
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  context.push('/vendor/$vendorId/pay', extra: {
+                                    'vendorName': vendorName,
+                                    'discountPercent': discountPct.toDouble(),
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: const Color(0xFF059669).withValues(alpha: 0.12)),
+                                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      // Logo
+                                      Container(
+                                        width: 42, height: 42,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: logoUrl != null
+                                            ? CachedNetworkImage(imageUrl: logoUrl, width: 42, height: 42, fit: BoxFit.cover,
+                                                errorWidget: (_, __, ___) => Center(child: Text(vendorName[0], style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primary))))
+                                            : Center(child: Text(vendorName[0], style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primary))),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Info
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(vendorName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                          const SizedBox(height: 3),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF059669).withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text('$discountPct% off everything', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF059669))),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    ],
 
                     // Bottom padding
                     const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -894,6 +1009,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.6),
       builder: (_) => _HomeRedemptionSheet(voucher: voucher),
+    );
+  }
+
+  Widget _vendorInitial(String name, double size) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(size / 4),
+      ),
+      child: Center(child: Text(name[0], style: TextStyle(fontSize: size / 2.5, fontWeight: FontWeight.w800, color: AppColors.primary))),
     );
   }
 
@@ -1531,7 +1657,7 @@ class _HeroSliderState extends State<_HeroSlider> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                Text(hero.formattedStudentPrice,
+                                Text(hero.studentPrice == 0 ? 'FREE' : hero.formattedStudentPrice,
                                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
                                 const SizedBox(width: 6),
                                 if (hero.originalPrice != hero.studentPrice)

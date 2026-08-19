@@ -105,6 +105,7 @@ model Vendor {
   dailyCode       String?
   dailyCodeDate   DateTime?
   commissionRate  Float    @default(0.10)
+  studentDiscount Float    @default(0)    // 0.10 = 10% off for BuzzPay students
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
