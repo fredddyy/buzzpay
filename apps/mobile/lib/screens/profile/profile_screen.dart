@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -121,7 +122,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // ──── HEADER ────
+              // ──── HEADER (dark gradient with stats) ────
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -129,72 +130,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      AppColors.primary.withValues(alpha: 0.08),
-                      AppColors.background,
+                      const Color(0xFF2D1B69),
+                      const Color(0xFF1A103F),
                     ],
                   ),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
                 child: Column(
                   children: [
-                    // Avatar with 3D border + verified badge
+                    // Avatar with verified badge
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 72,
+                          height: 72,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.primary.withValues(alpha: 0.08),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.12),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                            color: Colors.white.withValues(alpha: 0.15),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(8),
-                            child: Image.asset('assets/icons/user_3d.png'),
+                            child: Image.asset('assets/icons/user_3d.png',
+                              errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 36, color: Colors.white70)),
                           ),
                         ),
-                        // Verified badge floating on avatar edge
                         if (isVerified)
                           Positioned(
-                            bottom: -2,
-                            right: -2,
+                            bottom: -2, right: -2,
                             child: Container(
-                              width: 26,
-                              height: 26,
+                              width: 24, height: 24,
                               decoration: BoxDecoration(
-                                color: AppColors.card,
+                                color: Colors.white,
                                 shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.shadow.withValues(alpha: 0.1),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)],
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(3),
-                                child: Image.asset('assets/icons/checkmark_3d.png'),
-                              ),
+                              child: const Icon(Icons.verified, size: 16, color: AppColors.primary),
                             ),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
                     // Name
                     Text(firstName,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text(user?.university ?? 'University of Lagos',
-                        style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(user?.university ?? 'UNILAG',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.8))),
+                    ),
 
                     if (!isVerified) ...[
                       const SizedBox(height: 10),
@@ -221,29 +213,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Stats — real savings data
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _statCard(
-                            label: 'Total Saved',
-                            value: '₦${(_totalSaved ~/ 100).toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}',
-                            asset: 'assets/icons/coins_3d.png',
+                    // Stats — inside the dark gradient
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _darkStatCard(
+                              emoji: '💰',
+                              value: '₦${(_totalSaved ~/ 100).toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}',
+                              label: 'Saved',
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _statCard(
-                            label: 'Deals Claimed',
-                            value: '$_dealCount',
-                            asset: 'assets/icons/flame_3d.png',
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _darkStatCard(
+                              emoji: '🔥',
+                              value: '$_dealCount',
+                              label: 'Deals',
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _streakCard(),
-                        ),
-                      ],
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _darkStatCard(
+                              emoji: '🔥',
+                              value: '$_currentStreak',
+                              label: 'Day streak',
+                              subtitle: _longestStreak > 0 ? 'Best: $_longestStreak' : null,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     if (_totalSaved > 0) ...[
                       const SizedBox(height: 12),
@@ -253,15 +253,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.08),
+                            color: Colors.white.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.share, size: 16, color: AppColors.success),
+                              Icon(Icons.share, size: 16, color: Colors.white.withValues(alpha: 0.8)),
                               const SizedBox(width: 8),
-                              Text('Share your savings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)),
+                              Text('Share your savings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.9))),
                             ],
                           ),
                         ),
@@ -272,9 +273,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.card,
+                          color: Colors.white.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -290,11 +291,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text('$_favoriteVendor', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            Text('$_favoriteVendor', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
                             const SizedBox(width: 6),
                             const Text('🔥', style: TextStyle(fontSize: 12)),
                             const SizedBox(width: 4),
-                            Text('Go-to vendor', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                            Text('Go-to vendor', style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.5))),
                           ],
                         ),
                       ),
@@ -308,6 +309,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Column(
                   children: [
+                    const SizedBox(height: 14),
+
+                    // Referral code pill — easy copy
+                    if (_referralCode != null)
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: _referralCode!));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: const Text('Referral code copied!'),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            duration: const Duration(seconds: 1),
+                          ));
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.copy, size: 14, color: AppColors.textSecondary),
+                              const SizedBox(width: 8),
+                              Text('Referral Code: $_referralCode',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                            ],
+                          ),
+                        ),
+                      ),
+
                     const SizedBox(height: 12),
 
                     // Referral card
@@ -435,6 +470,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _darkStatCard({required String emoji, required String value, required String label, String? subtitle}) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
+          ),
+          const SizedBox(height: 2),
+          Text(label,
+            style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.6))),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(subtitle,
+              style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.4))),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _statCard({required String label, required String value, required String asset}) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -455,11 +521,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           Image.asset(asset, width: 24, height: 24),
           const SizedBox(height: 10),
-          Text(value,
-              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.text)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value,
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.text)),
+          ),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(fontSize: 12, color: AppColors.textTertiary, fontWeight: FontWeight.w400)),
+              style: const TextStyle(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w400)),
         ],
       ),
     );
@@ -483,10 +553,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🔥', style: TextStyle(fontSize: 24)),
+          Image.asset('assets/icons/flame_3d.png', width: 24, height: 24,
+            errorBuilder: (_, __, ___) => const Text('🔥', style: TextStyle(fontSize: 20))),
           const SizedBox(height: 10),
           Text('$_currentStreak',
-              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.text)),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.text)),
           const SizedBox(height: 2),
           const Text('Day streak',
               style: TextStyle(fontSize: 12, color: AppColors.textTertiary, fontWeight: FontWeight.w400)),

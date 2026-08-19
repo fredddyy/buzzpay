@@ -17,7 +17,8 @@ interface Tx {
   paidAt: string | null;
   createdAt: string;
   user: { fullName: string };
-  deal: { title: string };
+  deal: { title: string } | null;
+  orderItems?: { length: number }[];
 }
 
 const STATUS_FILTERS = [

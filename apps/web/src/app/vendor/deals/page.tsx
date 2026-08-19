@@ -410,7 +410,7 @@ export default function VendorDealsPage() {
               </div>
 
               <button type="submit"
-                disabled={saving || Number(form.studentPrice) >= Number(form.originalPrice) || (form.startsAt && form.expiresAt && new Date(form.expiresAt) <= new Date(form.startsAt)) || (form.dailyStart && !form.dailyEnd)}
+                disabled={saving || Number(form.studentPrice) >= Number(form.originalPrice) || !!(form.startsAt && form.expiresAt && new Date(form.expiresAt) <= new Date(form.startsAt)) || !!(form.dailyStart && !form.dailyEnd)}
                 className="w-full py-3.5 rounded-xl text-sm font-semibold mt-2 disabled:opacity-40 transition"
                 style={{ background: "var(--color-primary)", color: "white" }}>
                 {saving ? "Submitting..." : editId ? "Update & Submit for Review" : "Submit for Review"}
