@@ -5,14 +5,21 @@ const { hashSync } = bcryptjs;
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clean existing data
+  // Clean existing data (order matters for foreign keys)
+  await prisma.orderItem.deleteMany();
+  await prisma.loyaltyCard.deleteMany();
+  await prisma.userStreak.deleteMany();
+  await prisma.walletTransaction.deleteMany();
   await prisma.oTP.deleteMany();
   await prisma.voucher.deleteMany();
-  await prisma.payment.deleteMany();
+  await prisma.payoutItem.deleteMany();
   await prisma.payout.deleteMany();
+  await prisma.payment.deleteMany();
   await prisma.deal.deleteMany();
+  await prisma.vendorBankAccount.deleteMany();
   await prisma.student.deleteMany();
   await prisma.vendor.deleteMany();
+  await prisma.analyticsEvent.deleteMany();
   await prisma.user.deleteMany();
 
   // Create admin user

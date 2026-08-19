@@ -22,7 +22,7 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), (req
 
 // Global middleware
 app.use(helmet());
-app.use(cors({ origin: [env.FRONTEND_URL, 'http://localhost:3001', 'http://localhost:3002'], credentials: true }));
+app.use(cors({ origin: [env.FRONTEND_URL, 'http://localhost:3001', 'http://localhost:3002', /\.vercel\.app$/], credentials: true }));
 app.use(compression());
 app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '10mb' }));
