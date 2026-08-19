@@ -22,6 +22,7 @@ import '../../providers/deals_provider.dart';
 import '../../providers/vouchers_provider.dart';
 import '../../widgets/deal_card.dart';
 import '../../widgets/active_voucher_ticket.dart';
+import '../../widgets/shimmer_progress_bar.dart';
 import '../../widgets/happy_hour_card.dart';
 import '../../widgets/loyalty_sticker_row.dart';
 
@@ -49,6 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _scrollController = ScrollController();
   Timer? _debounceTimer;
   Timer? _verificationPoller;
+  Timer? _minuteTimer;
   int _currentStreak = 0;
   bool _purchasedToday = false;
 
@@ -61,6 +63,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
     _loadStreak();
     _startVerificationPoller();
+
+    // Auto-refresh every 60s for happy hour countdowns
+    _minuteTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) setState(() {});
+    });
 
     _realtime = RealtimeDeals();
     void _debouncedRefresh() {
@@ -168,6 +175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void dispose() {
     _debounceTimer?.cancel();
     _verificationPoller?.cancel();
+    _minuteTimer?.cancel();
     _scrollController.dispose();
     _realtime.dispose();
     super.dispose();
@@ -305,39 +313,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ),
                             const Spacer(),
-                            // Streak
-                            if (_currentStreak > 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(color: const Color(0xFFFFF3E0), borderRadius: BorderRadius.circular(12)),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text('🔥', style: TextStyle(fontSize: 12)),
-                                    const SizedBox(width: 3),
-                                    Text('$_currentStreak', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFFE65100))),
-                                  ],
-                                ),
-                              ),
-                            // Cart
+                            // Cart with bounce
                             GestureDetector(
                               onTap: () => context.push('/cart'),
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    width: 36, height: 36,
-                                    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.08), shape: BoxShape.circle),
-                                    child: const Center(child: Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.primary)),
-                                  ),
-                                  if (ref.watch(cartProvider).totalItems > 0)
-                                    Positioned(right: 0, top: 0,
-                                      child: Container(width: 16, height: 16,
-                                        decoration: const BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
-                                        child: Center(child: Text('${ref.watch(cartProvider).totalItems}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white))),
-                                      ),
+                              child: TweenAnimationBuilder<double>(
+                                key: ValueKey(ref.watch(cartProvider).totalItems),
+                                tween: Tween(begin: 1.2, end: 1.0),
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.elasticOut,
+                                builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: 36, height: 36,
+                                      decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.08), shape: BoxShape.circle),
+                                      child: const Center(child: Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.primary)),
                                     ),
-                                ],
+                                    if (ref.watch(cartProvider).totalItems > 0)
+                                      Positioned(right: 0, top: 0,
+                                        child: Container(width: 16, height: 16,
+                                          decoration: const BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+                                          child: Center(child: Text('${ref.watch(cartProvider).totalItems}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white))),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -402,110 +402,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                          child: () {
-                            final hero = deals.deals.first;
-                            final discount = hero.originalPrice > 0
-                              ? ((hero.originalPrice - hero.studentPrice) / hero.originalPrice * 100).round() : 0;
-                            return GestureDetector(
-                              onTap: () => context.push('/deal/${hero.id}'),
-                              child: Container(
-                                height: 180,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(18),
-                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4))],
-                                ),
-                                child: Stack(
-                                  children: [
-                                    // Background image
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(18),
-                                      child: hero.imageUrl != null
-                                        ? CachedNetworkImage(imageUrl: hero.imageUrl!, height: 180, width: double.infinity, fit: BoxFit.cover,
-                                            errorWidget: (_, __, ___) => Container(height: 180, color: AppColors.primary))
-                                        : Container(height: 180, color: AppColors.primary),
-                                    ),
-                                    // Gradient overlay — bottom-up for text legibility
-                                    Positioned.fill(
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(18),
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                                            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
-                                            stops: const [0.3, 1.0],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    // Content
-                                    Positioned(
-                                      left: 16, bottom: 16, right: 16,
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          // Vendor row
-                                          Row(
-                                            children: [
-                                              if (hero.vendorLogo != null) ...[
-                                                Container(
-                                                  width: 24, height: 24,
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.white,
-                                                    shape: BoxShape.circle,
-                                                    border: Border.all(color: Colors.white, width: 2),
-                                                  ),
-                                                  child: ClipOval(
-                                                    child: CachedNetworkImage(imageUrl: hero.vendorLogo!, fit: BoxFit.cover),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                              ],
-                                              Text(hero.vendorName,
-                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.85))),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-                                          // Title
-                                          Text(hero.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
-                                          const SizedBox(height: 8),
-                                          // Price + CTA row
-                                          Row(
-                                            children: [
-                                              Text(hero.formattedStudentPrice,
-                                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
-                                              const SizedBox(width: 6),
-                                              if (hero.originalPrice != hero.studentPrice)
-                                                Text(hero.formattedOriginalPrice,
-                                                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.5), decoration: TextDecoration.lineThrough)),
-                                              const Spacer(),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius: BorderRadius.circular(10),
-                                                ),
-                                                child: Text('Get Deal', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    // Discount badge
-                                    if (discount > 0)
-                                      Positioned(top: 14, right: 14,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-                                          child: Text('-$discount%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }(),
+                          child: _HeroSlider(deals: deals.deals.take(4).toList()),
                         ),
                       ),
 
@@ -612,7 +509,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 16,
-                            childAspectRatio: 0.60,
+                            childAspectRatio: 0.64,
                           ),
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
@@ -620,37 +517,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               final discount = deal.originalPrice > 0
                                 ? ((deal.originalPrice - deal.studentPrice) / deal.originalPrice * 100).round() : 0;
                               final remaining = deal.expiresAt.difference(DateTime.now());
+                              final bool showTimer = remaining.inDays < 4 && !remaining.isNegative;
                               final String timeLabel;
-                              if (remaining.isNegative) { timeLabel = 'Expired'; }
-                              else if (remaining.inDays > 0) { timeLabel = 'Ends in ${remaining.inDays}d'; }
-                              else if (remaining.inHours > 0) { timeLabel = 'Ends in ${remaining.inHours}h'; }
-                              else { timeLabel = 'Ends in ${remaining.inMinutes}m'; }
+                              final Color timerColor;
+                              if (remaining.isNegative) { timeLabel = 'Expired'; timerColor = const Color(0xFFDC2626); }
+                              else if (remaining.inHours < 3) { timeLabel = 'Ends in ${remaining.inMinutes}m'; timerColor = const Color(0xFFDC2626); }
+                              else if (remaining.inHours < 24) { timeLabel = 'Ends in ${remaining.inHours}h'; timerColor = const Color(0xFFF97316); }
+                              else { timeLabel = 'Ends in ${remaining.inDays}d'; timerColor = const Color(0xFF9CA3AF); }
 
                               // Determine badge
                               String? badge;
                               Color badgeColor = AppColors.primary;
-                              if (deal.remainingQty <= 3) { badge = '${deal.remainingQty} left'; badgeColor = const Color(0xFFEF4444); }
-                              else if (deal.remainingQty <= 10) { badge = '${deal.remainingQty} left'; badgeColor = const Color(0xFFF59E0B); }
+                              if (deal.remainingQty <= 3) { badge = '${deal.remainingQty} left!'; badgeColor = const Color(0xFFEF4444); }
                               else if (discount >= 40) { badge = 'Best Value'; }
                               else if (deal.studentPrice <= 50000) { badge = 'Under ₦500'; badgeColor = const Color(0xFF059669); }
 
                               // Urgency flags
                               final isHappyHour = deal.dailyStart != null && deal.dailyEnd != null;
-                              final isLimitedStock = deal.totalQuantity <= 20;
-                              final isUrgent = isHappyHour || (isLimitedStock && deal.remainingQty <= 10) || remaining.inHours < 3;
+                              final isLimitedStock = deal.remainingQty <= 10;
                               final stockPercent = deal.totalQuantity > 0 ? deal.remainingQty / deal.totalQuantity : 1.0;
-                              final urgentColor = isHappyHour ? const Color(0xFFF97316) : const Color(0xFFEF4444);
 
-                              return GestureDetector(
+                              // Happy hour time window logic
+                              bool isHHLive = false;
+                              bool isHHUpcoming = false;
+                              bool isHHEnded = false;
+                              String hhCountdown = '';
+                              if (isHappyHour) {
+                                final now = DateTime.now();
+                                final startParts = deal.dailyStart!.split(':');
+                                final endParts = deal.dailyEnd!.split(':');
+                                final startTime = DateTime(now.year, now.month, now.day, int.parse(startParts[0]), int.parse(startParts[1]));
+                                final endTime = DateTime(now.year, now.month, now.day, int.parse(endParts[0]), int.parse(endParts[1]));
+                                if (now.isBefore(startTime)) {
+                                  isHHUpcoming = true;
+                                  final diff = startTime.difference(now);
+                                  if (diff.inHours > 0) { hhCountdown = 'Drops in ${diff.inHours}h ${diff.inMinutes % 60}m'; }
+                                  else { hhCountdown = 'Drops in ${diff.inMinutes}m'; }
+                                } else if (now.isBefore(endTime)) {
+                                  isHHLive = true;
+                                  final diff = endTime.difference(now);
+                                  hhCountdown = 'Ends in ${diff.inMinutes}m';
+                                } else {
+                                  isHHEnded = true;
+                                }
+                              }
+
+                              // Skip ended happy hour deals
+                              if (isHHEnded) return const SizedBox.shrink();
+
+                              final isUrgent = isHHLive || (isLimitedStock && deal.remainingQty <= 10) || remaining.inHours < 3;
+                              final urgentColor = (isHHLive || isHHUpcoming) ? const Color(0xFFF97316) : const Color(0xFFEF4444);
+
+                              return _PressableCard(
                                 onTap: () {
+                                  if (isHHUpcoming) {
+                                    HapticFeedback.mediumImpact();
+                                    ScaffoldMessenger.of(context).clearSnackBars();
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                      content: Text('This deal drops at ${deal.dailyStart}!'),
+                                      backgroundColor: const Color(0xFFF97316),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      duration: const Duration(seconds: 2),
+                                    ));
+                                    return;
+                                  }
                                   HapticFeedback.lightImpact();
                                   context.push('/deal/${deal.id}');
                                 },
-                                child: TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: 1.0, end: 1.0),
-                                  duration: Duration.zero,
-                                  builder: (context, value, child) => child!,
-                                  child: Container(
+                                child: Container(
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(16),
@@ -685,8 +620,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                         child: const Center(child: Icon(Icons.fastfood, size: 28, color: AppColors.textTertiary))),
                                                 ),
                                               ),
+                                              // Dark overlay for upcoming happy hour deals
+                                              if (isHHUpcoming)
+                                                Positioned.fill(
+                                                  child: ClipRRect(
+                                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                                    child: Container(
+                                                      color: Colors.black.withValues(alpha: 0.45),
+                                                      child: Center(
+                                                        child: Column(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            const Icon(Icons.schedule, size: 24, color: Colors.white),
+                                                            const SizedBox(height: 4),
+                                                            Text(hhCountdown, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
                                               // Discount badge top-right
-                                              if (discount > 0)
+                                              if (discount > 0 && !isHHUpcoming)
                                                 Positioned(top: 8, right: 8,
                                                   child: Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -695,7 +650,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                   ),
                                                 ),
                                               // Smart badge top-left
-                                              if (badge != null)
+                                              if (badge != null && !isHHUpcoming)
                                                 Positioned(top: 8, left: 8,
                                                   child: Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -703,16 +658,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                     child: Text(badge, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
                                                   ),
                                                 ),
-                                              // Stock progress bar — inside Stack, behind vendor logo
+                                              // Stock progress bar with shimmer — inside Stack, behind vendor logo
                                               if (isLimitedStock)
                                                 Positioned(bottom: 0, left: 0, right: 0,
-                                                  child: LinearProgressIndicator(
+                                                  child: ShimmerProgressBar(
                                                     value: stockPercent.clamp(0.0, 1.0),
-                                                    backgroundColor: AppColors.border.withValues(alpha: 0.2),
-                                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                                      stockPercent < 0.3 ? const Color(0xFFDC2626) : const Color(0xFFF97316),
-                                                    ),
-                                                    minHeight: 3,
+                                                    color: stockPercent < 0.3 ? const Color(0xFFDC2626) : const Color(0xFFF97316),
                                                   ),
                                                 ),
                                               // Vendor logo — circular, bridging image and card body
@@ -742,8 +693,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              // Happy hour
-                                              if (isHappyHour)
+                                              // Happy hour status
+                                              if (isHHLive)
                                                 Padding(
                                                   padding: const EdgeInsets.only(bottom: 4),
                                                   child: Row(
@@ -751,8 +702,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                       Container(width: 6, height: 6,
                                                         decoration: const BoxDecoration(color: Color(0xFFF97316), shape: BoxShape.circle)),
                                                       const SizedBox(width: 4),
-                                                      Text('Live · ${deal.dailyStart}–${deal.dailyEnd}',
+                                                      Text('LIVE · $hhCountdown',
                                                         style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFF97316))),
+                                                    ],
+                                                  ),
+                                                ),
+                                              if (isHHUpcoming)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(bottom: 4),
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(Icons.schedule, size: 12, color: Color(0xFFF97316)),
+                                                      const SizedBox(width: 4),
+                                                      Text('Drops at ${deal.dailyStart}',
+                                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFF97316))),
                                                     ],
                                                   ),
                                                 ),
@@ -778,13 +741,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                 ],
                                               ),
                                               const SizedBox(height: 4),
-                                              // Timer
+                                              // Timer — only show when < 4 days
+                                              if (showTimer)
                                               Row(
                                                 children: [
-                                                  Icon(Icons.schedule, size: 12, color: remaining.inHours < 6 ? const Color(0xFFDC2626) : const Color(0xFF9CA3AF)),
+                                                  Icon(Icons.schedule, size: 12, color: timerColor),
                                                   const SizedBox(width: 3),
-                                                  Text(timeLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500,
-                                                    color: remaining.inHours < 6 ? const Color(0xFFDC2626) : const Color(0xFF9CA3AF))),
+                                                  Text(timeLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: timerColor)),
                                                 ],
                                               ),
                                             ],
@@ -793,7 +756,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ],
                                     ),
                                   ),
-                                ),
                               );
                             },
                             childCount: deals.deals.length,
@@ -1406,3 +1368,220 @@ class _HomeRedemptionSheetState extends State<_HomeRedemptionSheet>
     );
   }
 }
+
+class _PressableCard extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  const _PressableCard({required this.child, required this.onTap});
+
+  @override
+  State<_PressableCard> createState() => _PressableCardState();
+}
+
+class _PressableCardState extends State<_PressableCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 200),
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) => Transform.scale(
+          scale: _scale.value,
+          child: child,
+        ),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _HeroSlider extends StatefulWidget {
+  final List<Deal> deals;
+  const _HeroSlider({required this.deals});
+
+  @override
+  State<_HeroSlider> createState() => _HeroSliderState();
+}
+
+class _HeroSliderState extends State<_HeroSlider> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    if (widget.deals.length > 1) {
+      _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (!mounted) return;
+        final next = (_currentPage + 1) % widget.deals.length;
+        _pageController.animateToPage(next,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 180,
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (i) => setState(() => _currentPage = i),
+            itemCount: widget.deals.length,
+            itemBuilder: (context, index) {
+              final hero = widget.deals[index];
+              final discount = hero.originalPrice > 0
+                ? ((hero.originalPrice - hero.studentPrice) / hero.originalPrice * 100).round() : 0;
+              return GestureDetector(
+                onTap: () => context.push('/deal/${hero.id}'),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4))],
+                  ),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: hero.imageUrl != null
+                          ? CachedNetworkImage(imageUrl: hero.imageUrl!, height: 180, width: double.infinity, fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Container(height: 180, color: AppColors.primary))
+                          : Container(height: 180, color: AppColors.primary),
+                      ),
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
+                              stops: const [0.3, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 16, bottom: 16, right: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (hero.vendorLogo != null) ...[
+                                  Container(
+                                    width: 24, height: 24,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                    ),
+                                    child: ClipOval(
+                                      child: CachedNetworkImage(imageUrl: hero.vendorLogo!, fit: BoxFit.cover),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Text(hero.vendorName,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.85))),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(hero.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, height: 1.2)),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text(hero.formattedStudentPrice,
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+                                const SizedBox(width: 6),
+                                if (hero.originalPrice != hero.studentPrice)
+                                  Text(hero.formattedOriginalPrice,
+                                    style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.5), decoration: TextDecoration.lineThrough)),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                                  child: Text('Get Deal', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (discount > 0)
+                        Positioned(top: 14, right: 14,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
+                            child: Text('-$discount%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (widget.deals.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.deals.length, (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: _currentPage == i ? 20 : 6,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: _currentPage == i ? AppColors.primary : AppColors.border,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              )),
+            ),
+          ),
+      ],
+    );
+  }
+}
+

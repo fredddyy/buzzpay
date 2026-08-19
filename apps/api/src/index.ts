@@ -29,6 +29,35 @@ cron.schedule('*/5 * * * *', async () => {
   }
 });
 
+// Happy hour deal drop notifications — check every minute
+import { fcmService } from './services/fcm.service.js';
+import { prisma } from '@buzzpay/db';
+
+cron.schedule('* * * * *', async () => {
+  try {
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    // Find deals that start at exactly this minute
+    const droppingDeals = await prisma.deal.findMany({
+      where: {
+        isActive: true,
+        dailyStart: currentTime,
+        expiresAt: { gt: now },
+        remainingQty: { gt: 0 },
+      },
+      include: { vendor: { select: { businessName: true } } },
+    });
+
+    for (const deal of droppingDeals) {
+      fcmService.notifyHappyHourDrop(deal.title, deal.vendor.businessName, deal.dailyStart!).catch(() => {});
+      console.log(`[HappyHour] Notified drop: ${deal.title} at ${deal.dailyStart}`);
+    }
+  } catch (err) {
+    console.error('[HappyHour] Cron error:', err);
+  }
+});
+
 // Weekly vendor payouts — every Friday at 10:00 WAT (09:00 UTC)
 cron.schedule('0 9 * * 5', async () => {
   try {

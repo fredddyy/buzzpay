@@ -95,4 +95,15 @@ export const fcmService = {
   async dealDropping(userId: string, dealTitle: string, time: string) {
     await this.sendToUser(userId, `${dealTitle} is dropping! 🔥`, `Available at ${time}. Be quick — limited stock!`, { type: 'deal_dropping' });
   },
+
+  async notifyHappyHourDrop(dealTitle: string, vendorName: string, time: string) {
+    if (!this.isConfigured) return;
+    const students = await prisma.user.findMany({
+      where: { role: 'STUDENT', fcmToken: { not: null } },
+      select: { id: true },
+    });
+    for (const student of students) {
+      this.dealDropping(student.id, `${dealTitle} at ${vendorName}`, time).catch(() => {});
+    }
+  },
 };

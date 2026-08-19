@@ -10,7 +10,9 @@ import '../../core/theme/colors.dart';
 import '../../models/deal.dart';
 import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/cart_provider.dart';
 import '../../widgets/price_display.dart';
+import '../../widgets/shimmer_progress_bar.dart';
 import '../../widgets/verify_gate_sheet.dart';
 
 class DealDetailScreen extends ConsumerStatefulWidget {
@@ -203,7 +205,7 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                     // Share button
                     Positioned(
                       top: MediaQuery.of(context).padding.top + 8,
-                      right: 60,
+                      right: 106,
                       child: GestureDetector(
                         onTap: () => _shareDeal(deal),
                         child: ClipRRect(
@@ -217,6 +219,84 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.share, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Overflow menu
+                    Positioned(
+                      top: MediaQuery.of(context).padding.top + 8,
+                      right: 60,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              shape: BoxShape.circle,
+                            ),
+                            child: PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
+                              padding: EdgeInsets.zero,
+                              color: AppColors.card,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              onSelected: (value) {
+                                if (value == 'report') {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    backgroundColor: AppColors.card,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                    ),
+                                    builder: (_) => Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.flag_outlined, size: 32, color: AppColors.textTertiary),
+                                          const SizedBox(height: 12),
+                                          const Text('Report an issue',
+                                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                          const SizedBox(height: 6),
+                                          Text('Is "${deal.vendorName}" saying this deal is unavailable even though the app shows stock?',
+                                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                                              textAlign: TextAlign.center),
+                                          const SizedBox(height: 20),
+                                          SizedBox(
+                                            width: double.infinity, height: 48,
+                                            child: ElevatedButton(
+                                              onPressed: () {
+                                                Navigator.of(context).pop();
+                                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                                  content: const Text('Report submitted. We\'ll look into it.'),
+                                                  behavior: SnackBarBehavior.floating,
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                ));
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors.danger,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                              ),
+                                              child: const Text('Report Vendor', style: TextStyle(fontWeight: FontWeight.w600)),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          TextButton(
+                                            onPressed: () => Navigator.of(context).pop(),
+                                            child: const Text('Cancel', style: TextStyle(color: AppColors.textTertiary)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              itemBuilder: (_) => [
+                                const PopupMenuItem(value: 'report', child: Text('Report an issue')),
+                              ],
                             ),
                           ),
                         ),
@@ -399,16 +479,11 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        ClipRRect(
+                        ShimmerProgressBar(
+                          value: stockPercent,
+                          color: stockPercent < 0.15 ? const Color(0xFFEA580C) : AppColors.primary,
+                          height: 7,
                           borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            value: stockPercent,
-                            minHeight: 7,
-                            backgroundColor: AppColors.divider,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              stockPercent < 0.15 ? const Color(0xFFEA580C) : AppColors.primary,
-                            ),
-                          ),
                         ),
                         const SizedBox(height: 20),
                       ],
@@ -421,78 +496,46 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
                           style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.6)),
 
                       const SizedBox(height: 24),
-
-                      // Report vendor
+                      // More from vendor
                       GestureDetector(
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            backgroundColor: AppColors.card,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                            ),
-                            builder: (_) => Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.flag_outlined, size: 32, color: AppColors.textTertiary),
-                                  const SizedBox(height: 12),
-                                  const Text('Report an issue',
-                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 6),
-                                  Text('Is "${deal.vendorName}" saying this deal is unavailable even though the app shows stock?',
-                                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
-                                      textAlign: TextAlign.center),
-                                  const SizedBox(height: 20),
-                                  SizedBox(
-                                    width: double.infinity, height: 48,
-                                    child: ElevatedButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                          content: const Text('Report submitted. We\'ll look into it.'),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                        ));
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.danger,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                      ),
-                                      child: const Text('Report Vendor', style: TextStyle(fontWeight: FontWeight.w600)),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    child: const Text('Cancel', style: TextStyle(color: AppColors.textTertiary)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: () => context.push('/vendor/${deal.vendorId}'),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.primary.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.shield_outlined, size: 16, color: AppColors.textSecondary),
-                              const SizedBox(width: 6),
-                              Text('Report an issue with this vendor',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+                              Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: deal.vendorLogo != null
+                                  ? ClipOval(child: CachedNetworkImage(imageUrl: deal.vendorLogo!, fit: BoxFit.cover))
+                                  : Center(child: Text(deal.vendorName[0], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary))),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('More from ${deal.vendorName}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 2),
+                                    Text('See all deals from this vendor', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                              Icon(Icons.chevron_right, color: AppColors.textTertiary, size: 20),
                             ],
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 120),
+                      const SizedBox(height: 140),
                     ],
                   ),
                 ),
@@ -500,35 +543,77 @@ class _DealDetailScreenState extends ConsumerState<DealDetailScreen> {
             ],
           ),
 
-          // ──── FLOATING PAY BUTTON ────
+          // ──── FLOATING ACTION BUTTONS ────
           Positioned(
             bottom: MediaQuery.of(context).padding.bottom + 16,
             left: 20, right: 20,
-            child: SizedBox(
-              height: 54,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.35),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
+            child: Row(
+              children: [
+                // Add to Cart — secondary
+                SizedBox(
+                  height: 54,
+                  child: OutlinedButton(
+                    onPressed: deal.isSoldOut ? null : () {
+                      ref.read(cartProvider.notifier).addItem(deal, quantity: _qty);
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text('${deal.title} added to cart')),
+                            GestureDetector(
+                              onTap: () => context.push('/cart'),
+                              child: const Text('View', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white, decoration: TextDecoration.underline)),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: AppColors.primary,
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        duration: const Duration(seconds: 2),
+                      ));
+                    },
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      side: BorderSide(color: AppColors.primary, width: 1.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  onPressed: deal.isSoldOut ? null : () => _handlePay(deal),
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Text(
-                    deal.isSoldOut ? 'Sold Out' : 'Pay ${_formatNaira(deal.studentPrice * _qty)}',
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                    child: Icon(Icons.shopping_cart_outlined, color: deal.isSoldOut ? AppColors.textTertiary : AppColors.primary, size: 22),
                   ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                // Pay — primary
+                Expanded(
+                  child: SizedBox(
+                    height: 54,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.35),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: deal.isSoldOut ? null : () => _handlePay(deal),
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Text(
+                          deal.isSoldOut ? 'Sold Out' : 'Pay ${_formatNaira(deal.studentPrice * _qty)}${deal.originalPrice != deal.studentPrice ? ' · Save ${_formatNaira((deal.originalPrice - deal.studentPrice) * _qty)}' : ''}',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
