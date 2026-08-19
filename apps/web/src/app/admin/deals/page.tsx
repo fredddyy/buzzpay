@@ -378,7 +378,7 @@ export default function DealsPage() {
                         api.put(`/admin/deals/${d.id}`, {
                           totalQuantity: d.totalQuantity + add,
                           remainingQty: d.remainingQty + add,
-                        }).then(() => loadDeals()).catch(() => alert("Restock failed"));
+                        }).then(() => load()).catch(() => alert("Restock failed"));
                       }}
                       title="Restock"
                       className="px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors hover:opacity-80"
