@@ -181,7 +181,7 @@ export default function ScannerPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4" style={{ background: "var(--color-surface)", borderBottom: "1px solid var(--color-border)" }}>
         <div>
-          <h1 className="text-lg font-extrabold" style={{ color: "var(--color-primary)" }}>BuzzPay</h1>
+          <img src="/logo.png" alt="BuzzPay" className="h-8" />
           <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{vendorName}</p>
         </div>
         <div className="flex items-center gap-3">

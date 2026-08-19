@@ -13,7 +13,8 @@ interface RewardDeal {
   id: string;
   title: string;
   studentPrice: number;
-  vendor: { businessName: string };
+  vendorName?: string;
+  vendor?: { businessName: string };
 }
 
 interface Deal {
@@ -25,7 +26,7 @@ interface Deal {
 
 export default function ReferralsPage() {
   const [data, setData] = useState<ReferralData | null>(null);
-  const [rewardDeal, setRewardDeal] = useState<RewardDeal | null>(null);
+  const [rewardDeals, setRewardDeals] = useState<RewardDeal[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [selectedDealId, setSelectedDealId] = useState("");
   const [saving, setSaving] = useState(false);
@@ -36,14 +37,18 @@ export default function ReferralsPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [refRes, rewardRes, dealsRes] = await Promise.all([
+      const [refRes, dealsRes, rewardRes] = await Promise.all([
         api.get("/admin/referrals"),
-        api.get("/admin/referrals/reward-deal"),
-        api.get("/admin/deals?limit=50&status=active"),
+        api.get("/admin/deals?limit=100&status=active"),
+        api.get("/admin/deals?limit=100"),
       ]);
       setData(refRes.data.data);
-      setRewardDeal(rewardRes.data.data);
-      setDeals((dealsRes.data.data || []).map((d: Deal) => ({ id: d.id, title: d.title, vendorName: d.vendorName, studentPrice: d.studentPrice })));
+      // Get all deals tagged as referral-reward
+      const allDeals = rewardRes.data.data || [];
+      setRewardDeals(allDeals.filter((d: any) => (d.tags || []).includes('referral-reward')));
+      // Active deals for the dropdown (exclude already-reward deals)
+      const activeDeals = dealsRes.data.data || [];
+      setDeals(activeDeals.filter((d: any) => !(d.tags || []).includes('referral-reward')).map((d: Deal) => ({ id: d.id, title: d.title, vendorName: d.vendorName, studentPrice: d.studentPrice })));
     } catch {}
     setLoading(false);
   }
@@ -92,16 +97,22 @@ export default function ReferralsPage() {
           This is the deal students receive free when they invite 3 friends. Change monthly to keep it exciting.
         </p>
 
-        {rewardDeal ? (
-          <div className="flex items-center gap-3 mb-4 p-3 rounded-xl" style={{ background: "var(--color-primary-surface)", border: "1px solid var(--color-primary-border)" }}>
-            <span className="text-[13px] font-bold" style={{ color: "var(--color-primary)" }}>Current:</span>
-            <span className="text-[13px] font-medium" style={{ color: "var(--color-text)" }}>{rewardDeal.title}</span>
-            <span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>{rewardDeal.vendor.businessName}</span>
-            <span className="text-[12px] font-bold" style={{ color: "var(--color-success)" }}>{fmt(rewardDeal.studentPrice)}</span>
+        {rewardDeals.length > 0 ? (
+          <div className="space-y-2 mb-4">
+            <p className="text-[11px] font-semibold" style={{ color: "var(--color-text-muted)" }}>Current reward options ({rewardDeals.length}):</p>
+            {rewardDeals.map(d => (
+              <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "var(--color-primary-surface)", border: "1px solid var(--color-primary-border)" }}>
+                <span className="text-[13px] font-medium flex-1" style={{ color: "var(--color-text)" }}>{d.title}</span>
+                <span className="text-[12px]" style={{ color: "var(--color-text-muted)" }}>{(d as any).vendorName || d.vendor?.businessName || ''}</span>
+                <span className="text-[12px] font-bold" style={{ color: "var(--color-success)" }}>{fmt(d.studentPrice)}</span>
+                <button onClick={async () => { await api.post('/admin/referrals/remove-reward', { dealId: d.id }); loadAll(); }}
+                  className="text-[11px] font-semibold px-2 py-1 rounded" style={{ color: "var(--color-error)" }}>Remove</button>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="p-3 rounded-xl mb-4" style={{ background: "var(--color-warning-surface)", border: "1px solid var(--color-warning-border)" }}>
-            <p className="text-[12px] font-semibold" style={{ color: "var(--color-warning)" }}>No reward deal set! Referrals won&apos;t generate free meals until you set one.</p>
+            <p className="text-[12px] font-semibold" style={{ color: "var(--color-warning)" }}>No reward deals set! Add deals from different vendors so students can choose.</p>
           </div>
         )}
 
@@ -117,7 +128,7 @@ export default function ReferralsPage() {
           <button onClick={setReward} disabled={saving || !selectedDealId}
             className="px-4 py-2 rounded-xl text-[12px] font-semibold disabled:opacity-50"
             style={{ background: "var(--color-primary)", color: "white" }}>
-            {saving ? "..." : "Set as Reward"}
+            {saving ? "..." : "Add as Reward"}
           </button>
         </div>
       </div>

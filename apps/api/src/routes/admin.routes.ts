@@ -99,22 +99,36 @@ router.post('/referrals/set-reward', async (req, res, next) => {
     const { dealId } = req.body;
     if (!dealId) { res.status(400).json({ success: false, message: 'dealId required' }); return; }
 
-    // Remove old reward tag
-    await prisma.deal.updateMany({
-      where: { tags: { has: 'referral-reward' } },
-      data: { tags: { set: [] } }, // simplified — in production, filter the array
+    // Add reward tag (don't remove from others — allow multiple)
+    const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+    if (!deal) { res.status(404).json({ success: false, message: 'Deal not found' }); return; }
+
+    if ((deal.tags || []).includes('referral-reward')) {
+      res.json({ success: true, data: { dealId, title: deal.title, message: 'Already a reward deal' } });
+      return;
+    }
+
+    await prisma.deal.update({
+      where: { id: dealId },
+      data: { tags: [...(deal.tags || []), 'referral-reward'] },
     });
 
-    // Set new reward deal
+    res.json({ success: true, data: { dealId, title: deal.title } });
+  } catch (err) { next(err); }
+});
+
+router.post('/referrals/remove-reward', async (req, res, next) => {
+  try {
+    const { dealId } = req.body;
+    if (!dealId) { res.status(400).json({ success: false, message: 'dealId required' }); return; }
     const deal = await prisma.deal.findUnique({ where: { id: dealId } });
     if (!deal) { res.status(404).json({ success: false, message: 'Deal not found' }); return; }
 
     await prisma.deal.update({
       where: { id: dealId },
-      data: { tags: [...(deal.tags || []).filter((t: string) => t !== 'referral-reward'), 'referral-reward'] },
+      data: { tags: (deal.tags || []).filter((t: string) => t !== 'referral-reward') },
     });
-
-    res.json({ success: true, data: { dealId, title: deal.title } });
+    res.json({ success: true });
   } catch (err) { next(err); }
 });
 

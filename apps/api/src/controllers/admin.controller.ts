@@ -22,13 +22,14 @@ export const adminController = {
   async stats(req: Request, res: Response, next: NextFunction) {
     try {
       // Time range filter
-      const range = (req.query.range as string) || 'week';
+      const range = (req.query.range as string) || '7d';
       const now = new Date();
       const today = new Date(); today.setHours(0, 0, 0, 0);
+      const dayMatch = range.match(/^(\d+)d$/);
       const rangeStart = range === 'today' ? today
-        : range === 'month' ? new Date(now.getFullYear(), now.getMonth(), 1)
         : range === 'all' ? new Date(0)
-        : new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000); // default: week
+        : dayMatch ? new Date(today.getTime() - parseInt(dayMatch[1]) * 24 * 60 * 60 * 1000)
+        : new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
       const rangeFilter = { gte: rangeStart };
       const [
         totalUsers,

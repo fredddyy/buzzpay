@@ -10,8 +10,9 @@ class AppShell extends StatelessWidget {
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location == '/vouchers') return 1;
-    if (location == '/profile') return 2;
+    if (location == '/search') return 1;
+    if (location == '/vouchers') return 2;
+    if (location == '/profile') return 3;
     return 0;
   }
 
@@ -53,35 +54,28 @@ class AppShell extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _navItem(
-                        context: context,
-                        index: 0,
-                        current: currentIndex,
-                        icon: Image.asset('assets/icons/deals_outline.png', width: 22, height: 22,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.local_fire_department_outlined, size: 22, color: AppColors.textTertiary)),
-                        activeIcon: Image.asset('assets/icons/deals_filled.png', width: 22, height: 22,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.local_fire_department, size: 22, color: AppColors.primary)),
-                        label: 'Deals',
-                        route: '/',
+                        context: context, index: 0, current: currentIndex,
+                        icon: const Icon(Icons.home_outlined, size: 22, color: AppColors.textTertiary),
+                        activeIcon: const Icon(Icons.home_rounded, size: 22, color: AppColors.primary),
+                        label: 'Home', route: '/',
                       ),
                       _navItem(
-                        context: context,
-                        index: 1,
-                        current: currentIndex,
-                        icon: Image.asset('assets/icons/ticket_outline.png', width: 22, height: 22,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.confirmation_number_outlined, size: 22, color: AppColors.textTertiary)),
-                        activeIcon: Image.asset('assets/icons/ticket_filled.png', width: 22, height: 22,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.confirmation_number, size: 22, color: AppColors.primary)),
-                        label: 'Vouchers',
-                        route: '/vouchers',
+                        context: context, index: 1, current: currentIndex,
+                        icon: const Icon(Icons.search_rounded, size: 22, color: AppColors.textTertiary),
+                        activeIcon: const Icon(Icons.search_rounded, size: 22, color: AppColors.primary),
+                        label: 'Search', route: '/search',
                       ),
                       _navItem(
-                        context: context,
-                        index: 2,
-                        current: currentIndex,
+                        context: context, index: 2, current: currentIndex,
+                        icon: const Icon(Icons.confirmation_number_outlined, size: 22, color: AppColors.textTertiary),
+                        activeIcon: const Icon(Icons.confirmation_number, size: 22, color: AppColors.primary),
+                        label: 'Vouchers', route: '/vouchers',
+                      ),
+                      _navItem(
+                        context: context, index: 3, current: currentIndex,
                         icon: const Icon(Icons.person_outline, size: 22, color: AppColors.textTertiary),
                         activeIcon: const Icon(Icons.person, size: 22, color: AppColors.primary),
-                        label: 'Profile',
-                        route: '/profile',
+                        label: 'Me', route: '/profile',
                       ),
                     ],
                   ),

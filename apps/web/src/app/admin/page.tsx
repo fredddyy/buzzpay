@@ -33,15 +33,17 @@ interface Stats {
 
 const RANGES = [
   { label: "Today", value: "today" },
-  { label: "This Week", value: "week" },
-  { label: "This Month", value: "month" },
-  { label: "All Time", value: "all" },
+  { label: "7d", value: "7d" },
+  { label: "14d", value: "14d" },
+  { label: "30d", value: "30d" },
+  { label: "90d", value: "90d" },
+  { label: "All", value: "all" },
 ];
 
 export default function AdminOverview() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState("week");
+  const [range, setRange] = useState("7d");
 
   useEffect(() => { loadStats(); }, [range]);
 
@@ -143,6 +145,26 @@ export default function AdminOverview() {
               ))}
             </div>
           )}
+
+          {/* Deal Types Overview */}
+          <div className="rounded-xl p-4 mb-3" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+            <a href="/admin/deals" className="text-[12px] font-semibold mb-3 block hover:underline" style={{ color: "var(--color-text)" }}>Deal Types →</a>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg px-3 py-2.5" style={{ background: "var(--color-surface-light)", border: "1px solid var(--color-border)" }}>
+                <p className="text-[18px] font-bold" style={{ color: "var(--color-warning, #F59E0B)" }}>—</p>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Happy Hour deals</p>
+              </div>
+              <div className="rounded-lg px-3 py-2.5" style={{ background: "var(--color-surface-light)", border: "1px solid var(--color-border)" }}>
+                <p className="text-[18px] font-bold" style={{ color: "var(--color-info)" }}>—</p>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Referral Reward deals</p>
+              </div>
+              <div className="rounded-lg px-3 py-2.5" style={{ background: "var(--color-surface-light)", border: "1px solid var(--color-border)" }}>
+                <p className="text-[18px] font-bold" style={{ color: "var(--color-error)" }}>—</p>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>Low Stock (≤5 left)</p>
+              </div>
+            </div>
+            <p className="text-[10px] mt-2" style={{ color: "var(--color-text-muted)" }}>Counts shown when API includes deal-type breakdown</p>
+          </div>
 
           {/* Revenue Breakdown + Top Vendors + Categories */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">

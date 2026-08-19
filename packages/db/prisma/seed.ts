@@ -43,6 +43,7 @@ async function main() {
       businessName: 'Mama Nkechi Kitchen',
       businessAddress: 'Shop 5, UNILAG Main Gate',
       businessPhone: '+2348011111111',
+      logoUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200',
       opensAt: '07:00',
       closesAt: '21:00',
       commissionRate: 0.10,
@@ -65,6 +66,7 @@ async function main() {
       businessName: 'ChillZone Cafe',
       businessAddress: '12 University Road, Akoka',
       businessPhone: '+2348022222222',
+      logoUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200',
       opensAt: '10:00',
       closesAt: '22:00',
       commissionRate: 0.12,
@@ -169,6 +171,7 @@ async function main() {
       startsAt: now,
       expiresAt: nextWeek,
       isFeatured: true,
+      tags: ['referral-reward'],
     },
     {
       vendorId: vendor1.id,
@@ -212,6 +215,7 @@ async function main() {
       maxPerUser: 2,
       startsAt: now,
       expiresAt: nextWeek,
+      tags: ['referral-reward'],
     },
     {
       vendorId: vendor2.id,
@@ -412,12 +416,50 @@ async function main() {
     },
   });
 
+  // Create loyalty stamp cards
+  await prisma.loyaltyCard.create({
+    data: {
+      studentId: student!.id,
+      vendorId: vendor1.id,
+      stamps: 3,
+      target: 5,
+      rewardsUsed: 0,
+    },
+  });
+
+  await prisma.loyaltyCard.create({
+    data: {
+      studentId: student!.id,
+      vendorId: vendor2.id,
+      stamps: 1,
+      target: 5,
+      rewardsUsed: 0,
+    },
+  });
+
+  // Create user streak
+  await prisma.userStreak.create({
+    data: {
+      userId: studentUser.id,
+      currentStreak: 3,
+      longestStreak: 5,
+      lastPurchaseDate: now,
+    },
+  });
+
+  // Set referral code on student user
+  await prisma.user.update({
+    where: { id: studentUser.id },
+    data: { referralCode: 'BUZZ' + studentUser.id.slice(-4).toUpperCase() },
+  });
+
   console.log('Seed completed:');
   console.log(`  - 1 admin: admin@buzzpay.ng / admin123456`);
   console.log(`  - 2 vendors: Mama Nkechi Kitchen, ChillZone Cafe`);
   console.log(`  - 1 student: student@unilag.edu.ng / student123456`);
   console.log(`  - ${deals.length + happyHourDeals.length} deals across categories`);
   console.log(`  - 5 vouchers (3 active, 1 redeemed, 1 expired)`);
+  console.log(`  - 2 loyalty cards, 1 streak, 2 referral reward deals`);
 }
 
 main()

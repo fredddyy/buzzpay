@@ -11,6 +11,7 @@ import adminRoutes from './admin.routes.js';
 const router = Router();
 
 router.use('/auth', authRoutes);
+
 router.use('/deals', dealRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/vouchers', voucherRoutes);

@@ -19,6 +19,7 @@ import '../../screens/profile/profile_screen.dart';
 import '../../screens/vendor/vendor_profile_screen.dart';
 import '../../screens/cart/cart_screen.dart';
 import '../../screens/cart/cart_checkout_screen.dart';
+import '../../screens/search/search_screen.dart';
 import '../../screens/shell/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -94,6 +95,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/',
             builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/search',
+            builder: (context, state) => const SearchScreen(),
           ),
           GoRoute(
             path: '/vouchers',

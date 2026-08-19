@@ -293,7 +293,7 @@ export default function DealsPage() {
               </span>
               <div className="min-w-0">
                 <p className="text-[13px] font-medium truncate" style={{ color: "var(--color-text)" }}>{d.title}</p>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>{d.vendorName}</span>
                   {d.featuredSection && (
                     <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
@@ -301,7 +301,25 @@ export default function DealsPage() {
                       {d.featuredSection}
                     </span>
                   )}
-                  {(d as any).tags?.length > 0 && (d as any).tags.map((t: string) => (
+                  {d.dailyStart && (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--color-warning-surface, #FFF8E1)", color: "var(--color-warning, #F59E0B)" }}>
+                      Happy Hour
+                    </span>
+                  )}
+                  {(d as any).tags?.includes("referral-reward") && (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--color-info-surface)", color: "var(--color-info)" }}>
+                      Referral
+                    </span>
+                  )}
+                  {d.remainingQty <= 5 && d.remainingQty > 0 && (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--color-error-surface)", color: "var(--color-error)" }}>
+                      Low Stock
+                    </span>
+                  )}
+                  {(d as any).tags?.filter((t: string) => t !== "referral-reward").map((t: string) => (
                     <span key={t} className="text-[8px] font-semibold px-1.5 py-0.5 rounded"
                       style={{ background: "var(--color-info-surface)", color: "var(--color-info)" }}>
                       #{t}
@@ -454,7 +472,7 @@ function DealModal({ deal, vendors, campaignPresets, onClose, onSaved }: {
     expiresAt: deal?.expiresAt ? new Date(deal.expiresAt).toISOString().slice(0, 16) : new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
     isFeatured: deal?.isFeatured || false,
     guestAccess: deal?.guestAccess || false,
-    tags: ((deal as any)?.tags || []).join(", "),
+    tags: ((deal as any)?.tags || []) as string[],
     featuredSection: deal?.featuredSection || "",
     hasDailyWindow: (deal as any)?.dailyStart ? true : false,
     dailyStart: (deal as any)?.dailyStart || "08:00",
@@ -497,7 +515,7 @@ function DealModal({ deal, vendors, campaignPresets, onClose, onSaved }: {
       previewStart: form.hasDailyWindow ? form.previewStart : null,
       activeDays: form.hasDailyWindow ? form.activeDays : [],
       isRecurring: form.hasDailyWindow,
-      tags: form.tags ? form.tags.split(",").map((t: string) => t.trim().toLowerCase()).filter(Boolean) : [],
+      tags: form.tags,
     };
 
     const vendor = vendors.find(v => v.id === form.vendorId);
@@ -570,11 +588,21 @@ function DealModal({ deal, vendors, campaignPresets, onClose, onSaved }: {
               placeholder="Brief description" rows={2} style={{ ...inputStyle, resize: "vertical" }} />
           </div>
 
+          {/* Tags */}
           <div>
             <label style={labelStyle}>Tags</label>
-            <input value={form.tags} onChange={e => update("tags", e.target.value)}
-              placeholder="shawarma, wraps, late-night (comma separated)" style={inputStyle} />
-            <p className="text-[10px] mt-1" style={{ color: "var(--color-text-muted)" }}>Deals with shared tags appear in collection rows on the student feed</p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.tags.includes("referral-reward")}
+                onChange={(e) => {
+                  const next = e.target.checked
+                    ? [...form.tags, "referral-reward"]
+                    : form.tags.filter((t: string) => t !== "referral-reward");
+                  setForm(prev => ({ ...prev, tags: next }));
+                }}
+                className="rounded" />
+              <span className="text-[13px]" style={{ color: "var(--color-text)" }}>Referral Reward</span>
+            </label>
+            <p className="text-[10px] mt-1" style={{ color: "var(--color-text-muted)" }}>Tagged deals appear in the &ldquo;Refer &amp; Earn&rdquo; section on mobile</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -659,6 +687,26 @@ function DealModal({ deal, vendors, campaignPresets, onClose, onSaved }: {
               <input type="datetime-local" value={form.expiresAt}
                 onChange={e => update("expiresAt", e.target.value)} style={inputStyle} />
             </div>
+          </div>
+
+          {/* Happy Hour Time Window */}
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: "var(--color-text-muted)" }}>
+              Happy Hour (optional)
+            </label>
+            <div className="flex gap-2">
+              <input type="time" name="dailyStart" value={form.dailyStart || ""}
+                onChange={e => setForm(prev => ({ ...prev, dailyStart: e.target.value, hasDailyWindow: !!e.target.value }))}
+                className="flex-1 px-3 py-2 rounded-lg text-[13px] outline-none"
+                style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
+                placeholder="Start" />
+              <input type="time" name="dailyEnd" value={form.dailyEnd || ""}
+                onChange={e => setForm(prev => ({ ...prev, dailyEnd: e.target.value }))}
+                className="flex-1 px-3 py-2 rounded-lg text-[13px] outline-none"
+                style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
+                placeholder="End" />
+            </div>
+            <p className="text-[10px] mt-1" style={{ color: "var(--color-text-muted)" }}>Set time window for happy hour deals (e.g. 08:00 – 09:00)</p>
           </div>
 
           {/* Featured toggle + section name */}

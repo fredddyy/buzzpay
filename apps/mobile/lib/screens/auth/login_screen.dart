@@ -121,62 +121,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SafeArea(
             child: Column(
               children: [
-                // Top bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'BuzzPay',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.border, width: 1.5),
-                        ),
-                        child: const Icon(Icons.help_outline_rounded, size: 18, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 12),
+
+                        // Help button aligned right
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.border, width: 1.5),
+                            ),
+                            child: const Icon(Icons.help_outline_rounded, size: 18, color: AppColors.textSecondary),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Centered logo
+                        Center(
+                          child: Image.asset('assets/branding/logo_full.png', width: 160,
+                            errorBuilder: (_, __, ___) => const Text('BuzzPay',
+                              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary))),
+                        ),
+
+                        const SizedBox(height: 20),
 
                         // Welcome heading
                         const Text(
                           'Welcome back',
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: 26,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF111111),
                             height: 1.2,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         const Text(
-                          'Log in to your account and keep the buzz\ngoing.',
+                          'Log in to your account and keep the buzz going.',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 14,
                             color: AppColors.textSecondary,
                             height: 1.5,
                           ),
                         ),
 
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 28),
 
                         // Phone number label
                         const Text(
@@ -273,7 +271,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
                           ),
 
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 20),
 
                         // Continue button
                         SizedBox(
@@ -313,7 +311,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 24),
 
                         // Security card
                         Container(

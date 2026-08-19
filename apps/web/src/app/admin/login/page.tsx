@@ -38,10 +38,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-10">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-bold mx-auto mb-4"
-            style={{ background: "var(--color-primary)" }}>
-            B
-          </div>
+          <img src="/icon.png" alt="BuzzPay" className="w-14 h-14 mx-auto mb-4" />
           <h1 className="text-2xl font-bold" style={{ color: "var(--color-text)" }}>BuzzPay</h1>
           <p className="text-[13px] mt-1" style={{ color: "var(--color-text-muted)" }}>Admin Dashboard</p>
         </div>
