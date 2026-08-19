@@ -15,23 +15,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _page = 0;
 
   static const _pages = [
-    _OnboardingData(
-      icon: 'assets/icons/ticket_3d.png',
-      title: 'Student Deals,\nInstantly.',
-      subtitle: 'Exclusive discounts on food, drinks,\ndata & more — only for verified students.',
-      color: Color(0xFFF0EDFF),
+    _OnboardingPage(
+      emoji: '🍔',
+      title: 'Student deals.\nCampus prices.',
+      subtitle:
+          'Get exclusive discounts from vendors around your campus. Food, drinks, and more — all cheaper with BuzzPay.',
     ),
-    _OnboardingData(
-      icon: 'assets/icons/coins_3d.png',
-      title: 'Pay Less,\nSave More.',
-      subtitle: 'See the student price vs regular price.\nSave up to 40% on every purchase.',
-      color: Color(0xFFEDF9F0),
+    _OnboardingPage(
+      emoji: '🎓',
+      title: 'Verify once.\nSave every time.',
+      subtitle:
+          'Upload your student ID once and unlock discounted prices at every vendor on campus.',
     ),
-    _OnboardingData(
-      icon: 'assets/icons/checkmark_3d.png',
-      title: 'Show QR,\nEnjoy Your Meal.',
-      subtitle: 'Pay in-app, get a voucher, show it\nto the vendor. No cash, no stress.',
-      color: Color(0xFFFFF8ED),
+    _OnboardingPage(
+      emoji: '📱',
+      title: 'Pay in-app.\nShow QR. Eat.',
+      subtitle:
+          'Pay through the app, get a QR voucher instantly, show it to the vendor. That\'s it.',
     ),
   ];
 
@@ -41,44 +41,64 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (mounted) context.go('/login');
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   void _next() {
     if (_page < _pages.length - 1) {
-      _controller.nextPage(duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+      _controller.nextPage(
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeInOut,
+      );
     } else {
       _complete();
     }
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isLast = _page == _pages.length - 1;
+
     return Scaffold(
-      backgroundColor: AppColors.card,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Skip
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (_page < _pages.length - 1)
-                    GestureDetector(
-                      onTap: _complete,
-                      child: const Text('Skip',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textTertiary)),
-                    ),
-                ],
+            // Top bar — Skip button (hidden on last page)
+            SizedBox(
+              height: 48,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (!isLast)
+                      TextButton(
+                        onPressed: _complete,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textTertiary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Skip',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
 
-            // Pages
+            // Page content
             Expanded(
               child: PageView.builder(
                 controller: _controller,
@@ -90,35 +110,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
             // Dots + CTA
             Padding(
-              padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 40),
               child: Column(
                 children: [
-                  // Dots
+                  // Dot indicators
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_pages.length, (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: _page == i ? 24 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _page == i ? AppColors.primary : AppColors.border,
-                        borderRadius: BorderRadius.circular(4),
+                    children: List.generate(
+                      _pages.length,
+                      (i) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOut,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: _page == i ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _page == i
+                              ? AppColors.primary
+                              : AppColors.border,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
-                    )),
+                    ),
                   ),
-                  const SizedBox(height: 28),
-                  // Button
+                  const SizedBox(height: 32),
+
+                  // CTA button
                   SizedBox(
                     width: double.infinity,
                     height: 54,
-                    child: Container(
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 16,
+                            color: AppColors.primary.withValues(alpha: 0.28),
+                            blurRadius: 18,
                             offset: const Offset(0, 6),
                           ),
                         ],
@@ -126,11 +153,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: ElevatedButton(
                         onPressed: _next,
                         style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
                         ),
                         child: Text(
-                          _page == _pages.length - 1 ? 'Get Started' : 'Next',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          isLast ? 'Get Started' : 'Next',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
                         ),
                       ),
                     ),
@@ -144,59 +180,64 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildPage(_OnboardingData data) {
+  Widget _buildPage(_OnboardingPage page) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 36),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 3D icon in tinted circle
-          Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              color: data.color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: data.color.withValues(alpha: 0.5),
-                  blurRadius: 32,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Image.asset(data.icon, width: 80, height: 80),
-            ),
-          ),
-          const SizedBox(height: 44),
+          const Spacer(flex: 2),
+
+          // Emoji
           Text(
-            data.title,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1.2),
+            page.emoji,
+            style: const TextStyle(fontSize: 72),
+          ),
+
+          const SizedBox(height: 48),
+
+          // Headline
+          Text(
+            page.title,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+              height: 1.2,
+              letterSpacing: -0.3,
+            ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 14),
+
+          const SizedBox(height: 16),
+
+          // Subtitle
           Text(
-            data.subtitle,
-            style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
+            page.subtitle,
+            style: const TextStyle(
+              fontSize: 15,
+              color: AppColors.textSecondary,
+              height: 1.55,
+            ),
             textAlign: TextAlign.center,
           ),
+
+          const Spacer(flex: 3),
         ],
       ),
     );
   }
 }
 
-class _OnboardingData {
-  final String icon;
+class _OnboardingPage {
+  final String emoji;
   final String title;
   final String subtitle;
-  final Color color;
 
-  const _OnboardingData({
-    required this.icon,
+  const _OnboardingPage({
+    required this.emoji,
     required this.title,
     required this.subtitle,
-    required this.color,
   });
 }

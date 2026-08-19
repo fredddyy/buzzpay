@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/colors.dart';
+import '../../models/loyalty.dart';
 import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/vouchers_provider.dart';
+import '../../widgets/loyalty_sticker_row.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -23,12 +25,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String? _referralCode;
   int _referralCount = 0;
   int _untilReward = 3;
+  int _currentStreak = 0;
+  int _longestStreak = 0;
+  List<LoyaltyCard> _loyaltyCards = [];
 
   @override
   void initState() {
     super.initState();
     _loadSavings();
     _loadReferral();
+    _loadStreak();
+    _loadLoyalty();
+  }
+
+  Future<void> _loadStreak() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/users/streak');
+      final data = response.data['data'];
+      if (mounted && data != null) {
+        setState(() {
+          _currentStreak = data['currentStreak'] as int? ?? 0;
+          _longestStreak = data['longestStreak'] as int? ?? 0;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadLoyalty() async {
+    try {
+      final api = ref.read(apiClientProvider);
+      final response = await api.get('/users/loyalty');
+      final List<dynamic> items = response.data['data'] as List<dynamic>? ?? [];
+      if (mounted) {
+        setState(() {
+          _loyaltyCards = items.map((e) => LoyaltyCard.fromJson(e as Map<String, dynamic>)).toList();
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadReferral() async {
@@ -205,6 +239,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             asset: 'assets/icons/flame_3d.png',
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _streakCard(),
+                        ),
                       ],
                     ),
                     if (_totalSaved > 0) ...[
@@ -334,6 +372,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                     const SizedBox(height: 20),
 
+                    // ──── LOYALTY STAMPS ────
+                    if (_loyaltyCards.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Text('Loyalty Cards',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          const Spacer(),
+                          Text('${_loyaltyCards.length} vendor${_loyaltyCards.length == 1 ? '' : 's'}',
+                              style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      for (final card in _loyaltyCards) ...[
+                        LoyaltyCardWidget(card: card),
+                        const SizedBox(height: 12),
+                      ],
+                      const SizedBox(height: 8),
+                    ],
+
                     // Menu
                     _menuItem(Icons.receipt_long_outlined, 'Purchase History',
                         onTap: () => context.go('/vouchers')),
@@ -403,6 +460,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 2),
           Text(label,
               style: const TextStyle(fontSize: 12, color: AppColors.textTertiary, fontWeight: FontWeight.w400)),
+        ],
+      ),
+    );
+  }
+
+  Widget _streakCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 24)),
+          const SizedBox(height: 10),
+          Text('$_currentStreak',
+              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.text)),
+          const SizedBox(height: 2),
+          const Text('Day streak',
+              style: TextStyle(fontSize: 12, color: AppColors.textTertiary, fontWeight: FontWeight.w400)),
+          if (_longestStreak > 0) ...[
+            const SizedBox(height: 4),
+            Text('Best: $_longestStreak',
+                style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
+          ],
         ],
       ),
     );
